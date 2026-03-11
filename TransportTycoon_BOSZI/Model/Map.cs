@@ -1,14 +1,174 @@
-namespace DefaultNamespace;
+using System.Collections.Generic;
+using TransportTycoon_BOSZI.Model;
+
+namespace TransportTycoon_BOSZI;
 
 public class Map
 {
     private int _size;
     private int _money;
-    private Vehicle[] _vehicles;
-    private List<industrial_MapObject> _industries;
+    private MapObject[,] _map;
 
-    public createMap()
+    private readonly Mine _mine = new();
+    private readonly Farm _farm = new();
+    private readonly Factory _factory = new();
+    private readonly Field _field = new();
+    private readonly Water _water = new();
+    private readonly House _house = new();
+    private readonly Empty _empty = new();
+
+    private HashSet<(int x, int y)> _emptyTiles = new();
+    private Random _rand = new Random();
+
+    public Map(int size, int money)
+    {
+        _size = size;
+        _money = money;
+    }
+
+    public MapObject[,] createMap()
+    {
+        _map = new MapObject[_size, _size];
+        _emptyTiles.Clear();
+
+        for (int i = 0; i < _size; i++)
+        {
+            for (int j = 0; j < _size; j++)
+            {
+                _map[i, j] = _empty;
+                _emptyTiles.Add((i, j));
+            }
+        }
+
+        int startX = _rand.Next(1, _size - 1);
+        int startY = _rand.Next(1, _size - 1);
+        PlaceTile(startX, startY, _house); 
+
+        while (_emptyTiles.Count > 0)
+        {
+            var smallest = GetBestCandidate();
+
+            var (coord, unusable) = GetConstraints(smallest.x, smallest.y);
+            List<MapObject> usable = GetUsableObjects(unusable);
+
+            if (usable.Count == 0)
+            {
+                PlaceTile(smallest.x, smallest.y, _field);
+                continue;
+            }
+
+            MapObject selected = usable[_rand.Next(usable.Count)];
+
+            if (selected is House && isCityPlacable(smallest))
+            {
+                turnIntoCity(smallest);
+            }
+            else if (selected is Factory or Mine or Farm)
+            {
+                if (isFactoryFarmMinePlacable(smallest))
+                    turnIntoFactoryFarmMine(smallest, selected);
+                else
+                    PlaceTile(smallest.x, smallest.y, _field);
+            }
+            else
+            {
+                PlaceTile(smallest.x, smallest.y, selected);
+            }
+        }
+
+        return _map;
+    }
+
+    private (int x, int y) GetBestCandidate()
     {
         
+        return _emptyTiles.First();
     }
+
+    private void PlaceTile(int x, int y, MapObject obj)
+    {
+        if (x < 0 || x >= _size || y < 0 || y >= _size) return;
+        _map[x, y] = obj;
+        _emptyTiles.Remove((x, y));
+    }
+
+    private List<MapObject> GetUsableObjects(HashSet<Type> unusable)
+    {
+        List<MapObject> usable = new();
+        if (!unusable.Contains(typeof(Mine))) usable.Add(_mine);
+        if (!unusable.Contains(typeof(Factory))) usable.Add(_factory);
+        if (!unusable.Contains(typeof(House))) usable.Add(_house);
+        if (!unusable.Contains(typeof(Farm))) usable.Add(_farm);
+        if (!unusable.Contains(typeof(Field))) usable.Add(_field);
+        if (!unusable.Contains(typeof(Water))) usable.Add(_water);
+        return usable;
+    }
+
+    private ((int x, int y), HashSet<Type>) GetConstraints(int i, int j)
+    {
+        HashSet<Type> unusable = new();
+        int[] dx = { -1, 1, 0, 0 };
+        int[] dy = { 0, 0, -1, 1 };
+
+        for (int k = 0; k < 4; k++)
+        {
+            int ni = i + dx[k];
+            int nj = j + dy[k];
+
+            if (ni >= 0 && ni < _size && nj >= 0 && nj < _size)
+            {
+                var neighbor = _map[ni, nj];
+                if (neighbor is House)
+                {
+                    unusable.Add(typeof(Mine));
+                    unusable.Add(typeof(Farm));
+                    unusable.Add(typeof(Factory));
+                }
+                else if (neighbor is Factory or Mine or Farm)
+                {
+                    unusable.Add(typeof(House));
+                }
+            }
+        }
+        return ((i, j), unusable);
+    }
+
+    private void turnIntoCity((int x, int y) s)
+    {
+        PlaceTile(s.x,s.y, _house);
+        PlaceTile(s.x+1, s.y, _house);
+        PlaceTile(s.x, s.y+1, _house);
+        PlaceTile(s.x, s.y-1, _house);
+        PlaceTile(s.x-1, s.y, _house);
+        PlaceTile(s.x+1, s.y+1, _house);
+        PlaceTile(s.x-1, s.y-1, _house);
+        PlaceTile(s.x+1, s.y-1, _house);
+        PlaceTile(s.x-1, s.y+1, _house);
+    }
+
+    private void turnIntoFactoryFarmMine((int x, int y) s, MapObject a)
+    {
+        PlaceTile(s.x, s.y, a);
+        PlaceTile(s.x + 1, s.y, a);
+        PlaceTile(s.x + 1, s.y + 1, a);
+        PlaceTile(s.x, s.y + 1, a);
+    }
+
+    private bool isFactoryFarmMinePlacable((int x, int y) b) =>
+        b.x + 1 < _size && b.y + 1 < _size &&
+        isSomethingPlacable(_map[b.x + 1, b.y]) &&
+        isSomethingPlacable(_map[b.x, b.y + 1]) &&
+        isSomethingPlacable(_map[b.x + 1, b.y + 1]) &&
+        isSomethingPlacable(_map[b.x, b.y]);
+
+    private bool isCityPlacable((int x, int y) h)
+    {
+        if (h.x - 1 < 0 || h.x + 1 >= _size || h.y - 1 < 0 || h.y + 1 >= _size) return false;
+        for (int i = -1; i <= 1; i++)
+            for (int j = -1; j <= 1; j++)
+                if (!isSomethingPlacable(_map[h.x + i, h.y + j])) return false;
+        return true;
+    }
+
+    private bool isSomethingPlacable(MapObject a) => a is Field or Empty;
 }

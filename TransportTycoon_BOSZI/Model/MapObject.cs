@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using TransportTycoon_BOSZI.Model;
 
 namespace TransportTycoon_BOSZI;
@@ -5,13 +6,20 @@ namespace TransportTycoon_BOSZI;
 public abstract class MapObject
 {
     private coord _coord;
+    public coord Coord { get { return _coord; } set { _coord = value; } }
+    private int _weight = 5; 
+    public int Weight{ get { return _weight; } set { _weight = value; } }
+
 }
 
 public class Stop: MapObject
 {
     
 }
+public class Empty : MapObject
+{
 
+}
 public class Field : MapObject
 {
     private int _numberOfTrees;
