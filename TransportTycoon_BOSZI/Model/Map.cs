@@ -161,13 +161,18 @@ public class Map
         isSomethingPlacable(_map[b.x + 1, b.y + 1]) &&
         isSomethingPlacable(_map[b.x, b.y]);
 
-    private bool isCityPlacable((int x, int y) h)
+    private bool isCityPlacable((int x, int y) s)
     {
-        if (h.x - 1 < 0 || h.x + 1 >= _size || h.y - 1 < 0 || h.y + 1 >= _size) return false;
-        for (int i = -1; i <= 1; i++)
-            for (int j = -1; j <= 1; j++)
-                if (!isSomethingPlacable(_map[h.x + i, h.y + j])) return false;
-        return true;
+        return
+        isSomethingPlacable(_map[s.x, s.y]);
+        isSomethingPlacable(_map[s.x + 1, s.y]);
+        PlaceTile(s.x, s.y + 1, _house);
+        PlaceTile(s.x, s.y - 1, _house);
+        PlaceTile(s.x - 1, s.y, _house);
+        PlaceTile(s.x + 1, s.y + 1, _house);
+        PlaceTile(s.x - 1, s.y - 1, _house);
+        PlaceTile(s.x + 1, s.y - 1, _house);
+        PlaceTile(s.x - 1, s.y + 1, _house);
     }
 
     private bool isSomethingPlacable(MapObject a) => a is Field or Empty;
