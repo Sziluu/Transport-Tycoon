@@ -6,9 +6,14 @@ namespace TransportTycoon_BOSZI;
 public class Map
 {
     private int _size;
+    public int Size
+    { get { return _size; } set { _size = value; } }
     private int _money;
+    public int Money
+    { get { return _money; } set { _money = value; } }
     private MapObject[,] _map;
-
+    public MapObject[,] GetMap
+    { get { return _map; } set { _map = value; } }
     private readonly Mine _mine = new();
     private readonly Farm _farm = new();
     private readonly Factory _factory = new();
@@ -18,6 +23,11 @@ public class Map
     private readonly Empty _empty = new();
 
     private HashSet<(int x, int y)> _emptyTiles = new();
+    public HashSet<(int x, int y)> EmptyTiles
+    {
+        get { return _emptyTiles; }
+        set { _emptyTiles = value; }
+    }
     private Random _rand = new Random();
 
     public Map(int size, int money)
@@ -164,16 +174,35 @@ public class Map
     private bool isCityPlacable((int x, int y) s)
     {
         return
-        isSomethingPlacable(_map[s.x, s.y]);
-        isSomethingPlacable(_map[s.x + 1, s.y]);
-        PlaceTile(s.x, s.y + 1, _house);
-        PlaceTile(s.x, s.y - 1, _house);
-        PlaceTile(s.x - 1, s.y, _house);
-        PlaceTile(s.x + 1, s.y + 1, _house);
-        PlaceTile(s.x - 1, s.y - 1, _house);
-        PlaceTile(s.x + 1, s.y - 1, _house);
-        PlaceTile(s.x - 1, s.y + 1, _house);
+            isSomethingPlacable(_map[s.x, s.y]) &&
+            isSomethingPlacable(_map[s.x + 1, s.y]) &&
+            isSomethingPlacable(_map[s.x, s.y + 1]) &&
+            isSomethingPlacable(_map[s.x, s.y - 1]) &&
+            isSomethingPlacable(_map[s.x - 1, s.y]) &&
+            isSomethingPlacable(_map[s.x + 1, s.y + 1]) &&
+            isSomethingPlacable(_map[s.x - 1, s.y - 1]) &&
+            isSomethingPlacable(_map[s.x + 1, s.y - 1]) &&
+            isSomethingPlacable(_map[s.x - 1, s.y + 1]);
     }
-
+    public TileType GetTileType(MapObject obj)
+    {
+        if (obj is Mine)    return TileType.Mine;
+        if (obj is Farm)    return TileType.Farm;
+        if (obj is Factory) return TileType.Factory;
+        if (obj is Field)   return TileType.Field;
+        if (obj is Water)   return TileType.Water;
+        if (obj is House)   return TileType.House;
+        return TileType.Empty;
+    }
+    public MapObject TileTypeToObject(TileType type)
+    {
+        if (type == TileType.Mine)    return _mine;
+        if (type == TileType.Farm)    return _farm;
+        if (type == TileType.Factory) return _factory;
+        if (type == TileType.Field)   return _field;
+        if (type == TileType.Water)   return _water;
+        if (type == TileType.House)   return _house;
+        return _empty;
+    }
     private bool isSomethingPlacable(MapObject a) => a is Field or Empty;
 }
