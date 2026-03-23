@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using TransportTycoon_BOSZI.Model;
-
+using TransportTycoon_BOSZI.Model.MapObjects;
 namespace TransportTycoon_BOSZI;
 
 public class Map
@@ -23,6 +23,9 @@ public class Map
     private readonly Empty _empty = new();
 
     private HashSet<(int x, int y)> _emptyTiles = new();
+    private List<City> _cities = new();
+    private List<industrial_MapObject> _industries = new();
+    public List<industrial_MapObject> Industries => _industries;
     public HashSet<(int x, int y)> EmptyTiles
     {
         get { return _emptyTiles; }
@@ -40,6 +43,8 @@ public class Map
     {
         _map = new MapObject[_size, _size];
         _emptyTiles.Clear();
+        _cities.Clear();
+        _industries.Clear();
 
         for (int i = 0; i < _size; i++)
         {
@@ -52,7 +57,7 @@ public class Map
 
         int startX = _rand.Next(1, _size - 1);
         int startY = _rand.Next(1, _size - 1);
-        PlaceTile(startX, startY, _house); 
+        PlaceTile(startX, startY, _house);
 
         while (_emptyTiles.Count > 0)
         {
@@ -73,7 +78,7 @@ public class Map
             {
                 turnIntoCity(smallest);
             }
-            else if (selected is Factory or Mine or Farm)
+            else if (selected is Factory ||selected is Mine || selected is Farm)
             {
                 if (isFactoryFarmMinePlacable(smallest))
                     turnIntoFactoryFarmMine(smallest, selected);
@@ -89,6 +94,7 @@ public class Map
         return _map;
     }
 
+
     private (int x, int y) GetBestCandidate()
     {
         
@@ -101,6 +107,66 @@ public class Map
         _map[x, y] = obj;
         _emptyTiles.Remove((x, y));
     }
+    public bool BuildRoad(int x, int y)
+    {
+        if (x < 0 || x >= _size || y < 0 || y >= _size) return false;
+
+        MapObject current = _map[x, y];
+        int cost = 50;
+
+        //erdős mezőre drágább
+        if (current is Field f && f.NumberOfTrees > 0)
+            cost = 50 + f.NumberOfTrees * 20;
+        else if (!(current is Empty || current is Field))
+            return false; //nem lehet ide építeni
+
+        if (_money < cost) return false;
+
+        Road road = new Road();
+        road.Coord = new coord(x, y);
+        _map[x, y] = road;
+        _money -= cost;
+        return true;
+    }
+
+    public bool PlaceStop(int x, int y, Material material)
+    {
+        if (x < 0 || x >= _size || y < 0 || y >= _size) return false;
+
+        //megálló csak üres mezőre vagy field-re, és szomszédos kell legyen úttal/várossal/iparral
+        MapObject current = _map[x, y];
+        if (!(current is Empty || current is Field)) return false;
+
+        if (!HasAdjacentRoadOrCity(x, y)) return false;
+
+        int cost = 100;
+        if (_money < cost) return false;
+
+        Stop stop = new Stop(material);
+        stop.Coord = new coord(x, y);
+        _map[x, y] = stop;
+        _money -= cost;
+        return true;
+    }
+    private bool HasAdjacentRoadOrCity(int x, int y)
+    {
+        int[] dx = { -1, 1, 0, 0 };
+        int[] dy = { 0, 0, -1, 1 };
+
+        for (int k = 0; k < 4; k++)
+        {
+            int nx = x + dx[k];
+            int ny = y + dy[k];
+
+            if (nx >= 0 && nx < _size && ny >= 0 && ny < _size)
+            {
+                MapObject neighbor = _map[nx, ny];
+                if (neighbor is Road || neighbor is House || neighbor is industrial_MapObject)
+                    return true;
+            }
+        }
+        return false;
+    }
 
     private List<MapObject> GetUsableObjects(HashSet<Type> unusable)
     {
@@ -112,6 +178,22 @@ public class Map
         if (!unusable.Contains(typeof(Field))) usable.Add(_field);
         if (!unusable.Contains(typeof(Water))) usable.Add(_water);
         return usable;
+    }
+    public bool PlaceGarage(int x, int y)
+    {
+        if (x < 0 || x >= _size || y < 0 || y >= _size) return false;
+
+        MapObject current = _map[x, y];
+        if (!(current is Empty || current is Field)) return false;
+
+        int cost = 200;
+        if (_money < cost) return false;
+
+        Garage garage = new Garage();
+        garage.Coord = new coord(x, y);
+        _map[x, y] = garage;
+        _money -= cost;
+        return true;
     }
 
     private ((int x, int y), HashSet<Type>) GetConstraints(int i, int j)
@@ -173,6 +255,8 @@ public class Map
 
     private bool isCityPlacable((int x, int y) s)
     {
+        if (s.x - 1 < 0 || s.y - 1 < 0 || s.x + 1 > _size || s.y + 1 > _size)
+        { return false;}
         return
             isSomethingPlacable(_map[s.x, s.y]) &&
             isSomethingPlacable(_map[s.x + 1, s.y]) &&
@@ -205,4 +289,10 @@ public class Map
         return _empty;
     }
     private bool isSomethingPlacable(MapObject a) => a is Field or Empty;
+    public MapObject GetTile(int x, int y)
+    {
+        if (x < 0 || x >= _size || y < 0 || y >= _size) return null;
+        return _map[x, y];
+    }
+
 }

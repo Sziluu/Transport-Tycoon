@@ -1,4 +1,7 @@
-﻿namespace TransportTycoon_BOSZI;
+﻿using TransportTycoon_BOSZI.Model;
+using TransportTycoon_BOSZI.Model.MapObjects;
+
+namespace TransportTycoon_BOSZI;
 
 class Program
 {
