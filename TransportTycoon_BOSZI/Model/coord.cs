@@ -2,6 +2,7 @@ namespace TransportTycoon_BOSZI;
 
 public class coord
 {
+    //commit try
     public int X { get; set; }
     public int Y { get; set; }
 
