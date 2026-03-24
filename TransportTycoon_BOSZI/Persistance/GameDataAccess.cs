@@ -1,0 +1,461 @@
+using System.Drawing;
+using TransportTycoon_BOSZI.Model;
+using TransportTycoon_BOSZI.Model.MapObjects;
+using TransportTycoon_BOSZI.Model.Vehicles;
+
+namespace TransportTycoon_BOSZI.Persistance;
+
+public class GameDataAccess : IGameDataAccess
+{
+    private GameModel _model;
+    private const string SIGNATURE = "TTMAP";
+    private const ushort VERSION = 2;
+
+    public GameDataAccess(GameModel model)
+    {
+        _model = model;
+    }
+
+    public void SetModel(GameModel model)
+    {
+        _model = model;
+    }
+
+    // ========== SAVE ==========
+    public async Task SaveGameAsync(string filePath)
+    {
+        await Task.Run(() =>
+        {
+            using var stream = File.Open(filePath, FileMode.Create);
+            using var w = new BinaryWriter(stream);
+
+            // header
+            w.Write(System.Text.Encoding.ASCII.GetBytes(SIGNATURE));
+            w.Write(VERSION);
+
+            // time
+            w.Write(_model.Time.Day);
+            w.Write(_model.Time.TickCounter);
+            w.Write((byte)_model.Time.CurrentSpeed);
+
+            // map basics
+            var map = _model.Map;
+            w.Write(map.Size);
+            w.Write(map.Money);
+
+            // tiles
+            for (int i = 0; i < map.Size; i++)
+            {
+                for (int j = 0; j < map.Size; j++)
+                {
+                    var tile = map.GetMap[i, j];
+                    WriteTile(w, tile);
+                }
+            }
+
+            // cities
+            w.Write(map.Cities.Count);
+            foreach (var city in map.Cities)
+            {
+                w.Write(city.Name);
+                w.Write(city.TopLeft.X);
+                w.Write(city.TopLeft.Y);
+                w.Write(city.Size);
+                w.Write(city.Population);
+                w.Write(city.PassengerDemand);
+            }
+
+            // industries (positions + state)
+            // collect unique industries with their grid positions
+            var industryMap = new Dictionary<industrial_MapObject, (int x, int y)>();
+            for (int i = 0; i < map.Size; i++)
+                for (int j = 0; j < map.Size; j++)
+                    if (map.GetMap[i, j] is industrial_MapObject ind && !industryMap.ContainsKey(ind))
+                        industryMap[ind] = (i, j);
+
+            w.Write(industryMap.Count);
+            foreach (var kvp in industryMap)
+            {
+                var ind = kvp.Key;
+                w.Write(kvp.Value.x);
+                w.Write(kvp.Value.y);
+                w.Write((byte)GetTileType(ind));
+                w.Write(ind.ProductionRate);
+                w.Write(ind.StoredAmount);
+
+                // industry-specific data
+                if (ind is Mine mine) w.Write((byte)mine.Kind);
+                else if (ind is Factory fac) { w.Write((byte)fac.Using); w.Write((byte)fac.Kind); }
+                else if (ind is Farm farm) w.Write((byte)farm.Kind);
+            }
+
+            // routes
+            w.Write(_model.Routes.Count);
+            foreach (var route in _model.Routes)
+            {
+                w.Write(route.Name);
+                w.Write(route.Stops.Count);
+                foreach (var stop in route.Stops)
+                {
+                    w.Write(stop.X);
+                    w.Write(stop.Y);
+                }
+            }
+
+            // vehicles
+            w.Write(_model.Vehicles.Count);
+            foreach (var v in _model.Vehicles)
+            {
+                w.Write(GetVehicleTypeName(v));
+                w.Write((byte)v.VehicleSize);
+                w.Write((byte)v.CarriedMaterial);
+                w.Write(v.CurrentPosition.X);
+                w.Write(v.CurrentPosition.Y);
+                w.Write(v.Start.X);
+                w.Write(v.Start.Y);
+                w.Write(v.Target.X);
+                w.Write(v.Target.Y);
+                w.Write(v.IsMoving);
+                w.Write(v.LoadedAmount);
+                w.Write(v.CurrentPathIndex);
+
+                // route assignment (by name, empty if none)
+                w.Write(v.AssignedRoute?.Name ?? "");
+
+                // path
+                w.Write(v.PathToFollow.Count);
+                foreach (var p in v.PathToFollow)
+                {
+                    w.Write(p.X);
+                    w.Write(p.Y);
+                }
+            }
+        });
+    }
+
+    // ========== LOAD ==========
+    public async Task LoadGameAsync(string filePath)
+    {
+        await Task.Run(() =>
+        {
+            using var stream = File.Open(filePath, FileMode.Open);
+            using var r = new BinaryReader(stream);
+
+            // header
+            string sig = System.Text.Encoding.ASCII.GetString(r.ReadBytes(5));
+            if (sig != SIGNATURE) throw new InvalidDataException("Invalid save file.");
+            ushort version = r.ReadUInt16();
+            if (version > VERSION) throw new InvalidDataException($"Save version {version} not supported.");
+
+            // time
+            int day = r.ReadInt32();
+            int tickCounter = r.ReadInt32();
+            byte speedByte = r.ReadByte();
+
+            // map basics
+            int mapSize = r.ReadInt32();
+            int money = r.ReadInt32();
+
+            // create fresh map (without generating)
+            var map = _model.Map;
+            // we need to set size/money and allocate grid
+            // using reflection or adding a LoadMap method would be cleaner,
+            // but to not change Map.cs structure, we create a new GameModel
+            _model = new GameModel(mapSize, money);
+            map = _model.Map;
+
+            // allocate empty grid
+            var grid = new MapObject[mapSize, mapSize];
+
+            // tiles
+            for (int i = 0; i < mapSize; i++)
+            {
+                for (int j = 0; j < mapSize; j++)
+                {
+                    grid[i, j] = ReadTile(r);
+                }
+            }
+
+            // set grid via reflection (MapGrid property is read-only, _map is private)
+            var mapField = typeof(Map).GetField("_map", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            mapField?.SetValue(map, grid);
+
+            var sizeField = typeof(Map).GetField("_size", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            sizeField?.SetValue(map, mapSize);
+
+            map.Money = money;
+
+            // cities
+            int cityCount = r.ReadInt32();
+            map.Cities.Clear();
+            for (int i = 0; i < cityCount; i++)
+            {
+                string name = r.ReadString();
+                int cx = r.ReadInt32();
+                int cy = r.ReadInt32();
+                int size = r.ReadInt32();
+                int pop = r.ReadInt32();
+                int demand = r.ReadInt32();
+
+                var city = new City(name, new coord(cx, cy), size);
+                city.Population = pop;
+                city.PassengerDemand = demand;
+                map.Cities.Add(city);
+            }
+
+            // industries
+            int industryCount = r.ReadInt32();
+            map.Industries.Clear();
+            for (int i = 0; i < industryCount; i++)
+            {
+                int ix = r.ReadInt32();
+                int iy = r.ReadInt32();
+                byte typeByte = r.ReadByte();
+                int prodRate = r.ReadInt32();
+                int stored = r.ReadInt32();
+
+                industrial_MapObject ind;
+                TileType tt = (TileType)typeByte;
+
+                if (tt == TileType.Mine)
+                {
+                    Material kind = (Material)r.ReadByte();
+                    ind = new Mine(kind);
+                }
+                else if (tt == TileType.Factory)
+                {
+                    Material usingMat = (Material)r.ReadByte();
+                    Material kind = (Material)r.ReadByte();
+                    ind = new Factory(usingMat, kind);
+                }
+                else // Farm
+                {
+                    Material kind = (Material)r.ReadByte();
+                    ind = new Farm(kind);
+                }
+
+                ind.ProductionRate = prodRate;
+                ind.StoredAmount = stored;
+                map.Industries.Add(ind);
+
+                // place on grid (2x2)
+                grid[ix, iy] = ind;
+                if (ix + 1 < mapSize) grid[ix + 1, iy] = ind;
+                if (iy + 1 < mapSize) grid[ix, iy + 1] = ind;
+                if (ix + 1 < mapSize && iy + 1 < mapSize) grid[ix + 1, iy + 1] = ind;
+            }
+
+            // routes
+            int routeCount = r.ReadInt32();
+            _model.Routes.Clear();
+            var routeLookup = new Dictionary<string, Route>();
+            for (int i = 0; i < routeCount; i++)
+            {
+                string name = r.ReadString();
+                int stopCount = r.ReadInt32();
+                var stops = new List<Point>();
+                for (int s = 0; s < stopCount; s++)
+                    stops.Add(new Point(r.ReadInt32(), r.ReadInt32()));
+
+                var route = new Route(name, stops);
+                _model.Routes.Add(route);
+                routeLookup[name] = route;
+            }
+
+            // vehicles
+            int vehicleCount = r.ReadInt32();
+            _model.Vehicles.Clear();
+            for (int i = 0; i < vehicleCount; i++)
+            {
+                string typeName = r.ReadString();
+                size vSize = (size)r.ReadByte();
+                Material vMat = (Material)r.ReadByte();
+                int posX = r.ReadInt32();
+                int posY = r.ReadInt32();
+                int startX = r.ReadInt32();
+                int startY = r.ReadInt32();
+                int targetX = r.ReadInt32();
+                int targetY = r.ReadInt32();
+                bool isMoving = r.ReadBoolean();
+                int loadedAmount = r.ReadInt32();
+                int pathIndex = r.ReadInt32();
+                string routeName = r.ReadString();
+
+                int pathCount = r.ReadInt32();
+                var path = new List<Point>();
+                for (int p = 0; p < pathCount; p++)
+                    path.Add(new Point(r.ReadInt32(), r.ReadInt32()));
+
+                // create vehicle
+                Vehicle? vehicle = CreateVehicle(typeName, vSize);
+                if (vehicle == null) continue;
+
+                vehicle.CurrentPosition = new Point(posX, posY);
+                vehicle.Start = new Point(startX, startY);
+                vehicle.Target = new Point(targetX, targetY);
+
+                // load goods
+                if (loadedAmount > 0) vehicle.LoadGoods(loadedAmount);
+
+                // assign route
+                if (!string.IsNullOrEmpty(routeName) && routeLookup.TryGetValue(routeName, out var route))
+                    vehicle.AssignRouteToVehicle(route);
+
+                // restore path (via reflection since PathToFollow is read-only list)
+                vehicle.PathToFollow.Clear();
+                vehicle.PathToFollow.AddRange(path);
+
+                // restore movement state via reflection
+                var movingField = typeof(Vehicle).GetField("_isMoving", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                movingField?.SetValue(vehicle, isMoving);
+
+                var pathIdxField = typeof(Vehicle).GetField("_currentPathIndex", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                pathIdxField?.SetValue(vehicle, pathIndex);
+
+                _model.Vehicles.Add(vehicle);
+            }
+
+            // restore time
+            var timeDay = typeof(Time).GetField("_day", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            timeDay?.SetValue(_model.Time, day);
+
+            var timeTick = typeof(Time).GetField("_tickCounter", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            timeTick?.SetValue(_model.Time, tickCounter);
+
+            var timeSpeed = typeof(Time).GetField("_currentSpeed", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            timeSpeed?.SetValue(_model.Time, (GameSpeed)speedByte);
+        });
+    }
+
+    // ========== Save file listing ==========
+    public string[] GetSaveFiles(string directory)
+    {
+        if (!Directory.Exists(directory)) return Array.Empty<string>();
+        return Directory.GetFiles(directory, "*.ttsave")
+                       .OrderByDescending(f => File.GetLastWriteTime(f))
+                       .ToArray();
+    }
+
+    // ========== Helpers ==========
+    private void WriteTile(BinaryWriter w, MapObject tile)
+    {
+        byte type = (byte)GetTileType(tile);
+        w.Write(type);
+
+        // tile-specific extra data
+        switch (tile)
+        {
+            case Field f:
+                w.Write((byte)f.NumberOfTrees);
+                break;
+            case Road r:
+                w.Write(r.IsPartOfCity);
+                break;
+            case House h:
+                w.Write(h.IsPartOfCity);
+                break;
+            case Stop s:
+                w.Write((byte)s.AcceptedMaterial);
+                break;
+            // Mine/Factory/Farm data is saved separately in the industries section
+            // Water, Empty, Garage, Bridge have no extra data
+        }
+    }
+
+    private MapObject ReadTile(BinaryReader r)
+    {
+        TileType type = (TileType)r.ReadByte();
+
+        switch (type)
+        {
+            case TileType.Field:
+                var f = new Field();
+                f.NumberOfTrees = r.ReadByte();
+                return f;
+            case TileType.Road:
+                var road = new Road();
+                road.IsPartOfCity = r.ReadBoolean();
+                return road;
+            case TileType.House:
+                var h = new House();
+                h.IsPartOfCity = r.ReadBoolean();
+                return h;
+            case TileType.Stop:
+                var stop = new Stop((Material)r.ReadByte());
+                return stop;
+            case TileType.Water:
+                return new Water();
+            case TileType.Garage:
+                return new Garage();
+            case TileType.WoodBridge:
+                return new WoodBridge();
+            case TileType.StoneBridge:
+                return new StoneBridge();
+            case TileType.SteelBridge:
+                return new SteelBridge();
+            case TileType.Mine:
+                return new Mine(); // placeholder, real data restored in industry section
+            case TileType.Factory:
+                return new Factory();
+            case TileType.Farm:
+                return new Farm();
+            default:
+                return new Field();
+        }
+    }
+
+    public static TileType GetTileType(MapObject tile)
+    {
+        return tile switch
+        {
+            Mine => TileType.Mine,
+            Factory => TileType.Factory,
+            Farm => TileType.Farm,
+            Field => TileType.Field,
+            Road => TileType.Road,
+            House => TileType.House,
+            Water => TileType.Water,
+            Stop => TileType.Stop,
+            Garage => TileType.Garage,
+            WoodBridge => TileType.WoodBridge,
+            StoneBridge => TileType.StoneBridge,
+            SteelBridge => TileType.SteelBridge,
+            _ => TileType.Empty
+        };
+    }
+
+    private string GetVehicleTypeName(Vehicle v)
+    {
+        return v switch
+        {
+            Bus => "Bus",
+            IronTransporter => "IronTransporter",
+            IronOreTransporter => "IronOreTransporter",
+            CoalTransporter => "CoalTransporter",
+            WoodTransporter => "WoodTransporter",
+            PaperTransporter => "PaperTransporter",
+            WheatTransporter => "WheatTransporter",
+            BreadTransporter => "BreadTransporter",
+            _ => "Bus"
+        };
+    }
+
+    private Vehicle? CreateVehicle(string typeName, size size)
+    {
+        return typeName switch
+        {
+            "Bus" => new Bus(speed.mid, size),
+            "IronTransporter" => new IronTransporter(size),
+            "IronOreTransporter" => new IronOreTransporter(size),
+            "CoalTransporter" => new CoalTransporter(size),
+            "WoodTransporter" => new WoodTransporter(size),
+            "PaperTransporter" => new PaperTransporter(size),
+            "WheatTransporter" => new WheatTransporter(size),
+            "BreadTransporter" => new BreadTransporter(size),
+            _ => null
+        };
+    }
+
+    // public getter for the model (after load it's a new instance)
+    public GameModel Model => _model;
+}

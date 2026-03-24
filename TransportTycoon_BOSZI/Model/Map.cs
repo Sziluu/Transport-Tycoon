@@ -24,6 +24,7 @@ public class Map
 
     private HashSet<(int x, int y)> _emptyTiles = new();
     private List<City> _cities = new();
+    public List<City> Cities { get { return _cities; } set { _cities = value; } }
     private List<industrial_MapObject> _industries = new();
     public List<industrial_MapObject> Industries => _industries;
     public HashSet<(int x, int y)> EmptyTiles
