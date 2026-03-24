@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,6 +17,8 @@ using TransportTycoon_BOSZI;
 using TransportTycoon_BOSZI.Model;
 using TransportTycoon_BOSZI.Model.MapObjects;
 using TransportTycoon_BOSZI.Model.Vehicles;
+using TransportTycoon_BOSZI.Persistance;
+
 namespace transport_tycoon_viewlayer.View
 {
     /// <summary>
@@ -84,6 +87,75 @@ namespace transport_tycoon_viewlayer.View
             _minimapImage = null;
             _minimapBitmap = null;
             RenderViewport();
+        }
+        private async void SaveGame_Click(object sender, RoutedEventArgs e)
+        {
+            // ensure Saves folder exists
+            string savesDir = System.IO.Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory, "Saves");
+            Directory.CreateDirectory(savesDir);
+
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Save Game",
+                Filter = "Transport Tycoon Save (*.ttsave)|*.ttsave",
+                InitialDirectory = savesDir,
+                FileName = $"save_{DateTime.Now:yyyyMMdd_HHmmss}.ttsave"
+            };
+
+            if (dialog.ShowDialog() != true) return;
+
+            try
+            {
+                var dataAccess = new GameDataAccess(_viewModel.Model);
+                await dataAccess.SaveGameAsync(dialog.FileName);
+                StatusLabel.Text = $"Game saved: {System.IO.Path.GetFileName(dialog.FileName)}";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to save game:\n{ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        private async void LoadGame_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Load Game",
+                Filter = "Transport Tycoon Save (*.ttsave)|*.ttsave",
+                InitialDirectory = System.IO.Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory, "Saves")
+            };
+
+            if (dialog.ShowDialog() != true) return;
+
+            try
+            {
+                var dataAccess = new GameDataAccess(_viewModel.Model);
+                await dataAccess.LoadGameAsync(dialog.FileName);
+
+                _viewModel.SetModel(dataAccess.Model);
+
+                MainMenuPanel.Visibility = Visibility.Collapsed;
+                GamePanel.Visibility = Visibility.Visible;
+
+                // reset camera to center of loaded map
+                int sz = _viewModel.Model.Map.Size;
+                _camX = sz * TW2;
+                _camY = sz * TH2 / 2;
+                _mapDirty = true;
+                _minimapImage = null;
+                _minimapBitmap = null;
+
+                RenderViewport();
+                _viewModel.ResumeCommand.Execute(null);
+                StatusLabel.Text = $"Game loaded: {System.IO.Path.GetFileName(dialog.FileName)}";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to load game:\n{ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
         private void QuitGame_Click(object sender, RoutedEventArgs e) => Application.Current.Shutdown();
         private void QuitToMenu_Click(object sender, RoutedEventArgs e)

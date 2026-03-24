@@ -235,7 +235,23 @@ namespace transport_tycoon_viewlayer.ViewModel
             else if (tile is industrial_MapObject ind)
                 StatusText += $" (stored: {ind.StoredAmount})";
         }
+        public void SetModel(GameModel newModel)
+        {
+            _model = newModel;
 
+            // re-subscribe events
+            _model.MoneyChanged += (s, e) => UpdateUI();
+            _model.MapChanged += (s, e) => RequestMapRedraw?.Invoke();
+            _model.VehicleMoved += (s, e) => RequestVehicleRedraw?.Invoke();
+            _model.GameOver += (s, e) =>
+            {
+                IsGameOver = true;
+                StatusText = "BANKRUPT! Game Over!";
+            };
+
+            UpdateUI();
+            RequestMapRedraw?.Invoke();
+        }
         public void BuyAndPlaceVehicle(string vehicleType, size size)
         {
             var vehicle = _model.BuyVehicle(vehicleType, size);
