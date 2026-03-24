@@ -6,126 +6,273 @@ namespace TransportTycoon_BOSZI;
 public class Map
 {
     private int _size;
-    public int Size
-    { get { return _size; } set { _size = value; } }
     private int _money;
-    public int Money
-    { get { return _money; } set { _money = value; } }
     private MapObject[,] _map;
-    public MapObject[,] GetMap
-    { get { return _map; } set { _map = value; } }
-    private readonly Mine _mine = new();
-    private readonly Farm _farm = new();
-    private readonly Factory _factory = new();
-    private readonly Field _field = new();
-    private readonly Water _water = new();
-    private readonly House _house = new();
-    private readonly Empty _empty = new();
-
-    private HashSet<(int x, int y)> _emptyTiles = new();
-    private List<City> _cities = new();
-    public List<City> Cities { get { return _cities; } set { _cities = value; } }
-    private List<industrial_MapObject> _industries = new();
-    public List<industrial_MapObject> Industries => _industries;
-    public HashSet<(int x, int y)> EmptyTiles
-    {
-        get { return _emptyTiles; }
-        set { _emptyTiles = value; }
-    }
     private Random _rand = new Random();
 
-    public Map(int size, int money)
-    {
-        _size = size;
-        _money = money;
-    }
+    private List<City> _cities = new();
+    private List<industrial_MapObject> _industries = new();
+    private List<(int x, int y)> _industryPositions = new();
+
+    public int Size => _size;
+    public int Money { get => _money; set => _money = value; }
+    public MapObject[,] GetMap => _map;
+    public List<City> Cities => _cities;
+    public List<industrial_MapObject> Industries => _industries;
+
+    public Map(int size, int money) { _size = size; _money = money; }
 
     public MapObject[,] createMap()
     {
         _map = new MapObject[_size, _size];
-        _emptyTiles.Clear();
-        _cities.Clear();
-        _industries.Clear();
+        _cities.Clear(); _industries.Clear(); _industryPositions.Clear();
+
+        // 1) Perlin-like noise for terrain variety
+        double[,] noise = GenerateNoise();
 
         for (int i = 0; i < _size; i++)
-        {
             for (int j = 0; j < _size; j++)
             {
-                _map[i, j] = _empty;
-                _emptyTiles.Add((i, j));
-            }
-        }
-
-        int startX = _rand.Next(1, _size - 1);
-        int startY = _rand.Next(1, _size - 1);
-        PlaceTile(startX, startY, _house);
-
-        while (_emptyTiles.Count > 0)
-        {
-            var smallest = GetBestCandidate();
-
-            var (coord, unusable) = GetConstraints(smallest.x, smallest.y);
-            List<MapObject> usable = GetUsableObjects(unusable);
-
-            if (usable.Count == 0)
-            {
-                PlaceTile(smallest.x, smallest.y, _field);
-                continue;
-            }
-
-            MapObject selected = usable[_rand.Next(usable.Count)];
-
-            if (selected is House && isCityPlacable(smallest))
-            {
-                turnIntoCity(smallest);
-            }
-            else if (selected is Factory ||selected is Mine || selected is Farm)
-            {
-                if (isFactoryFarmMinePlacable(smallest))
-                    turnIntoFactoryFarmMine(smallest, selected);
+                double val = noise[i, j];
+                if (val < 0.10)
+                    _map[i, j] = new Water();
                 else
-                    PlaceTile(smallest.x, smallest.y, _field);
+                {
+                    var f = new Field();
+                    if (val > 0.5 && _rand.Next(100) < 30)
+                        f.NumberOfTrees = _rand.Next(1, 5);
+                    _map[i, j] = f;
+                }
             }
-            else
-            {
-                PlaceTile(smallest.x, smallest.y, selected);
-            }
-        }
+
+        // 2) cities
+        int cityCount = Math.Max(5, _size / 20);
+        for (int i = 0; i < cityCount; i++) TryPlaceCity();
+
+        // 3) industries
+        int industryCount = Math.Max(8, _size / 10);
+        for (int i = 0; i < industryCount; i++) TryPlaceIndustry();
+
+        // 4) road network
+        BuildRoadNetwork();
+
+        // 5) auto-place stops near every city and industry
+        PlaceAutoStops();
 
         return _map;
     }
 
-
-    private (int x, int y) GetBestCandidate()
+    // ========== Perlin-like noise ==========
+    private double[,] GenerateNoise()
     {
-        
-        return _emptyTiles.First();
+        double[,] result = new double[_size, _size];
+        int octaves = 3;
+        double persistence = 0.5;
+
+        // random gradient grid (coarse)
+        int gridSize = 16;
+        double[,] gradients = new double[gridSize + 1, gridSize + 1];
+        for (int i = 0; i <= gridSize; i++)
+            for (int j = 0; j <= gridSize; j++)
+                gradients[i, j] = _rand.NextDouble();
+
+        for (int x = 0; x < _size; x++)
+            for (int y = 0; y < _size; y++)
+            {
+                double total = 0;
+                double amplitude = 1;
+                double frequency = 1;
+                double maxVal = 0;
+
+                for (int oct = 0; oct < octaves; oct++)
+                {
+                    double sampleX = x * frequency / _size * gridSize;
+                    double sampleY = y * frequency / _size * gridSize;
+
+                    int x0 = (int)sampleX % gridSize;
+                    int y0 = (int)sampleY % gridSize;
+                    int x1 = (x0 + 1) % (gridSize + 1);
+                    int y1 = (y0 + 1) % (gridSize + 1);
+                    double fx = sampleX - Math.Floor(sampleX);
+                    double fy = sampleY - Math.Floor(sampleY);
+
+                    fx = fx * fx * (3 - 2 * fx); // smoothstep
+                    fy = fy * fy * (3 - 2 * fy);
+
+                    double v00 = gradients[x0, y0];
+                    double v10 = gradients[x1, y0];
+                    double v01 = gradients[x0, y1];
+                    double v11 = gradients[x1, y1];
+
+                    double i0 = v00 + fx * (v10 - v00);
+                    double i1 = v01 + fx * (v11 - v01);
+                    double val = i0 + fy * (i1 - i0);
+
+                    total += val * amplitude;
+                    maxVal += amplitude;
+                    amplitude *= persistence;
+                    frequency *= 2;
+                }
+                result[x, y] = total / maxVal;
+            }
+        return result;
     }
 
-    private void PlaceTile(int x, int y, MapObject obj)
+    // ========== City ==========
+    private void TryPlaceCity()
     {
-        if (x < 0 || x >= _size || y < 0 || y >= _size) return;
-        _map[x, y] = obj;
-        _emptyTiles.Remove((x, y));
+        for (int attempt = 0; attempt < 200; attempt++)
+        {
+            int cx = _rand.Next(5, _size - 5);
+            int cy = _rand.Next(5, _size - 5);
+            if (!IsAreaLand(cx - 1, cy - 1, 5, 5)) continue;
+            if (TooClose(cx, cy, 15)) continue;
+
+            // place 3x3: houses at corners, roads in cross
+            _map[cx, cy] = new House { IsPartOfCity = true };
+            _map[cx + 1, cy] = new Road { IsPartOfCity = true };
+            _map[cx + 2, cy] = new House { IsPartOfCity = true };
+            _map[cx, cy + 1] = new Road { IsPartOfCity = true };
+            _map[cx + 1, cy + 1] = new Road { IsPartOfCity = true };
+            _map[cx + 2, cy + 1] = new Road { IsPartOfCity = true };
+            _map[cx, cy + 2] = new House { IsPartOfCity = true };
+            _map[cx + 1, cy + 2] = new Road { IsPartOfCity = true };
+            _map[cx + 2, cy + 2] = new House { IsPartOfCity = true };
+
+            _cities.Add(new City("City_" + (_cities.Count + 1), new coord(cx, cy), 3));
+            return;
+        }
     }
+
+    // ========== Industry ==========
+    private void TryPlaceIndustry()
+    {
+        for (int attempt = 0; attempt < 200; attempt++)
+        {
+            int ix = _rand.Next(3, _size - 3);
+            int iy = _rand.Next(3, _size - 3);
+            if (!IsAreaLand(ix, iy, 2, 2)) continue;
+            if (TooClose(ix, iy, 8)) continue;
+
+            industrial_MapObject industry = (_rand.Next(3)) switch
+            {
+                0 => new Mine(),
+                1 => new Factory(),
+                _ => new Farm()
+            };
+
+            _map[ix, iy] = industry;
+            _map[ix + 1, iy] = industry;
+            _map[ix, iy + 1] = industry;
+            _map[ix + 1, iy + 1] = industry;
+
+            _industries.Add(industry);
+            _industryPositions.Add((ix, iy));
+            return;
+        }
+    }
+
+    private bool IsAreaLand(int x, int y, int w, int h)
+    {
+        for (int dx = 0; dx < w; dx++)
+            for (int dy = 0; dy < h; dy++)
+            {
+                int nx = x + dx, ny = y + dy;
+                if (nx < 0 || nx >= _size || ny < 0 || ny >= _size) return false;
+                if (_map[nx, ny] is Water) return false;
+                if (!(_map[nx, ny] is Field)) return false;
+            }
+        return true;
+    }
+
+    private bool TooClose(int x, int y, int minDist)
+    {
+        foreach (var city in _cities)
+            if (Math.Max(Math.Abs(city.TopLeft.X - x), Math.Abs(city.TopLeft.Y - y)) < minDist) return true;
+        foreach (var ip in _industryPositions)
+            if (Math.Max(Math.Abs(ip.x - x), Math.Abs(ip.y - y)) < minDist) return true;
+        return false;
+    }
+
+    // ========== Roads (MST) ==========
+    private void BuildRoadNetwork()
+    {
+        List<(int x, int y)> nodes = new();
+        foreach (var city in _cities) nodes.Add((city.TopLeft.X + 1, city.TopLeft.Y + 1));
+        foreach (var ip in _industryPositions) nodes.Add((ip.x - 1, ip.y));
+        if (nodes.Count < 2) return;
+
+        HashSet<int> connected = new() { 0 };
+        while (connected.Count < nodes.Count)
+        {
+            int bestFrom = -1, bestTo = -1, bestDist = int.MaxValue;
+            foreach (int from in connected)
+                for (int to = 0; to < nodes.Count; to++)
+                {
+                    if (connected.Contains(to)) continue;
+                    int dist = Math.Abs(nodes[from].x - nodes[to].x) + Math.Abs(nodes[from].y - nodes[to].y);
+                    if (dist < bestDist) { bestDist = dist; bestFrom = from; bestTo = to; }
+                }
+            if (bestTo == -1) break;
+            BuildRoadPath(nodes[bestFrom].x, nodes[bestFrom].y, nodes[bestTo].x, nodes[bestTo].y);
+            connected.Add(bestTo);
+        }
+    }
+
+    private void BuildRoadPath(int x1, int y1, int x2, int y2)
+    {
+        int x = x1, y = y1;
+        int sx = x2 > x1 ? 1 : -1;
+        while (x != x2) { PlaceRoadIfField(x, y); x += sx; }
+        int sy = y2 > y1 ? 1 : -1;
+        while (y != y2) { PlaceRoadIfField(x, y); y += sy; }
+        PlaceRoadIfField(x, y);
+    }
+
+    private void PlaceRoadIfField(int x, int y)
+    {
+        if (x >= 0 && x < _size && y >= 0 && y < _size && _map[x, y] is Field)
+            _map[x, y] = new Road();
+    }
+
+    // ========== Auto-Stops ==========
+    private void PlaceAutoStops()
+    {
+        foreach (var city in _cities)
+        {
+            int cx = city.TopLeft.X, cy = city.TopLeft.Y;
+            // Try north entrance (above road at cx+1,cy), then south entrance
+            if (!TryPlaceAutoStop(cx + 1, cy - 1))
+                TryPlaceAutoStop(cx + 1, cy + 3);
+        }
+        foreach (var ip in _industryPositions)
+        {
+            // Try all four sides of the 2x2 industry block
+            if (!TryPlaceAutoStop(ip.x - 1, ip.y) &&
+                !TryPlaceAutoStop(ip.x, ip.y - 1) &&
+                !TryPlaceAutoStop(ip.x + 2, ip.y) &&
+                !TryPlaceAutoStop(ip.x, ip.y + 2))
+            { /* no suitable adjacent field */ }
+        }
+    }
+
+    private bool TryPlaceAutoStop(int x, int y)
+    {
+        if (x < 0 || x >= _size || y < 0 || y >= _size) return false;
+        if (!(_map[x, y] is Field)) return false;
+        if (!HasAdjacentRoadOrCity(x, y)) return false;
+        _map[x, y] = new Stop(Material.nothing) { Coord = new coord(x, y) };
+        return true;
+    }
+
+    // ========== Player Actions ==========
     public bool BuildRoad(int x, int y)
     {
         if (x < 0 || x >= _size || y < 0 || y >= _size) return false;
-
-        MapObject current = _map[x, y];
-        int cost = 50;
-
-        //erdős mezőre drágább
-        if (current is Field f && f.NumberOfTrees > 0)
-            cost = 50 + f.NumberOfTrees * 20;
-        else if (!(current is Empty || current is Field))
-            return false; //nem lehet ide építeni
-
+        if (!(_map[x, y] is Field)) return false;
+        int cost = (_map[x, y] is Field f && f.NumberOfTrees > 0) ? 50 + f.NumberOfTrees * 20 : 50;
         if (_money < cost) return false;
-
-        Road road = new Road();
-        road.Coord = new coord(x, y);
-        _map[x, y] = road;
+        _map[x, y] = new Road { Coord = new coord(x, y) };
         _money -= cost;
         return true;
     }
@@ -133,167 +280,48 @@ public class Map
     public bool PlaceStop(int x, int y, Material material)
     {
         if (x < 0 || x >= _size || y < 0 || y >= _size) return false;
-
-        //megálló csak üres mezőre vagy field-re, és szomszédos kell legyen úttal/várossal/iparral
-        MapObject current = _map[x, y];
-        if (!(current is Empty || current is Field)) return false;
-
+        if (!(_map[x, y] is Field)) return false;
         if (!HasAdjacentRoadOrCity(x, y)) return false;
-
-        int cost = 100;
-        if (_money < cost) return false;
-
-        Stop stop = new Stop(material);
-        stop.Coord = new coord(x, y);
-        _map[x, y] = stop;
-        _money -= cost;
+        if (_money < 100) return false;
+        _map[x, y] = new Stop(material) { Coord = new coord(x, y) };
+        _money -= 100;
         return true;
     }
+
     private bool HasAdjacentRoadOrCity(int x, int y)
     {
-        int[] dx = { -1, 1, 0, 0 };
-        int[] dy = { 0, 0, -1, 1 };
-
+        int[] dx = { -1, 1, 0, 0 }, dy = { 0, 0, -1, 1 };
         for (int k = 0; k < 4; k++)
         {
-            int nx = x + dx[k];
-            int ny = y + dy[k];
-
+            int nx = x + dx[k], ny = y + dy[k];
             if (nx >= 0 && nx < _size && ny >= 0 && ny < _size)
-            {
-                MapObject neighbor = _map[nx, ny];
-                if (neighbor is Road || neighbor is House || neighbor is industrial_MapObject)
-                    return true;
-            }
+                if (_map[nx, ny] is Road or House or industrial_MapObject) return true;
         }
         return false;
     }
 
-    private List<MapObject> GetUsableObjects(HashSet<Type> unusable)
-    {
-        List<MapObject> usable = new();
-        if (!unusable.Contains(typeof(Mine))) usable.Add(_mine);
-        if (!unusable.Contains(typeof(Factory))) usable.Add(_factory);
-        if (!unusable.Contains(typeof(House))) usable.Add(_house);
-        if (!unusable.Contains(typeof(Farm))) usable.Add(_farm);
-        if (!unusable.Contains(typeof(Field))) usable.Add(_field);
-        if (!unusable.Contains(typeof(Water))) usable.Add(_water);
-        return usable;
-    }
     public bool PlaceGarage(int x, int y)
     {
         if (x < 0 || x >= _size || y < 0 || y >= _size) return false;
-
-        MapObject current = _map[x, y];
-        if (!(current is Empty || current is Field)) return false;
-
-        int cost = 200;
-        if (_money < cost) return false;
-
-        Garage garage = new Garage();
-        garage.Coord = new coord(x, y);
-        _map[x, y] = garage;
-        _money -= cost;
+        if (!(_map[x, y] is Field)) return false;
+        if (_money < 200) return false;
+        _map[x, y] = new Garage { Coord = new coord(x, y) };
+        _money -= 200;
         return true;
     }
 
-    private ((int x, int y), HashSet<Type>) GetConstraints(int i, int j)
-    {
-        HashSet<Type> unusable = new();
-        int[] dx = { -1, 1, 0, 0 };
-        int[] dy = { 0, 0, -1, 1 };
-
-        for (int k = 0; k < 4; k++)
-        {
-            int ni = i + dx[k];
-            int nj = j + dy[k];
-
-            if (ni >= 0 && ni < _size && nj >= 0 && nj < _size)
-            {
-                var neighbor = _map[ni, nj];
-                if (neighbor is House)
-                {
-                    unusable.Add(typeof(Mine));
-                    unusable.Add(typeof(Farm));
-                    unusable.Add(typeof(Factory));
-                }
-                else if (neighbor is Factory or Mine or Farm)
-                {
-                    unusable.Add(typeof(House));
-                }
-            }
-        }
-        return ((i, j), unusable);
-    }
-
-    private void turnIntoCity((int x, int y) s)
-    {
-        PlaceTile(s.x,s.y, _house);
-        PlaceTile(s.x+1, s.y, _house);
-        PlaceTile(s.x, s.y+1, _house);
-        PlaceTile(s.x, s.y-1, _house);
-        PlaceTile(s.x-1, s.y, _house);
-        PlaceTile(s.x+1, s.y+1, _house);
-        PlaceTile(s.x-1, s.y-1, _house);
-        PlaceTile(s.x+1, s.y-1, _house);
-        PlaceTile(s.x-1, s.y+1, _house);
-    }
-
-    private void turnIntoFactoryFarmMine((int x, int y) s, MapObject a)
-    {
-        PlaceTile(s.x, s.y, a);
-        PlaceTile(s.x + 1, s.y, a);
-        PlaceTile(s.x + 1, s.y + 1, a);
-        PlaceTile(s.x, s.y + 1, a);
-    }
-
-    private bool isFactoryFarmMinePlacable((int x, int y) b) =>
-        b.x + 1 < _size && b.y + 1 < _size &&
-        isSomethingPlacable(_map[b.x + 1, b.y]) &&
-        isSomethingPlacable(_map[b.x, b.y + 1]) &&
-        isSomethingPlacable(_map[b.x + 1, b.y + 1]) &&
-        isSomethingPlacable(_map[b.x, b.y]);
-
-    private bool isCityPlacable((int x, int y) s)
-    {
-        if (s.x - 1 < 0 || s.y - 1 < 0 || s.x + 1 > _size || s.y + 1 > _size)
-        { return false;}
-        return
-            isSomethingPlacable(_map[s.x, s.y]) &&
-            isSomethingPlacable(_map[s.x + 1, s.y]) &&
-            isSomethingPlacable(_map[s.x, s.y + 1]) &&
-            isSomethingPlacable(_map[s.x, s.y - 1]) &&
-            isSomethingPlacable(_map[s.x - 1, s.y]) &&
-            isSomethingPlacable(_map[s.x + 1, s.y + 1]) &&
-            isSomethingPlacable(_map[s.x - 1, s.y - 1]) &&
-            isSomethingPlacable(_map[s.x + 1, s.y - 1]) &&
-            isSomethingPlacable(_map[s.x - 1, s.y + 1]);
-    }
-    public TileType GetTileType(MapObject obj)
-    {
-        if (obj is Mine)    return TileType.Mine;
-        if (obj is Farm)    return TileType.Farm;
-        if (obj is Factory) return TileType.Factory;
-        if (obj is Field)   return TileType.Field;
-        if (obj is Water)   return TileType.Water;
-        if (obj is House)   return TileType.House;
-        return TileType.Empty;
-    }
-    public MapObject TileTypeToObject(TileType type)
-    {
-        if (type == TileType.Mine)    return _mine;
-        if (type == TileType.Farm)    return _farm;
-        if (type == TileType.Factory) return _factory;
-        if (type == TileType.Field)   return _field;
-        if (type == TileType.Water)   return _water;
-        if (type == TileType.House)   return _house;
-        return _empty;
-    }
-    private bool isSomethingPlacable(MapObject a) => a is Field or Empty;
     public MapObject GetTile(int x, int y)
     {
         if (x < 0 || x >= _size || y < 0 || y >= _size) return null;
         return _map[x, y];
     }
 
+    public List<(int x, int y)> GetAllStops()
+    {
+        var stops = new List<(int x, int y)>();
+        for (int i = 0; i < _size; i++)
+            for (int j = 0; j < _size; j++)
+                if (_map[i, j] is Stop) stops.Add((i, j));
+        return stops;
+    }
 }

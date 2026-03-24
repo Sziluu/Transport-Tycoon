@@ -1,0 +1,102 @@
+﻿<Window x:Class="transport_tycoon_viewlayer.View.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:transport_tycoon_viewlayer.View"
+        mc:Ignorable="d"
+            Title="Transport Tycoon BOSZI" 
+    Width="1280" Height="720"
+    WindowState="Maximized"
+    Background="#2d5016">
+    <Grid x:Name="MainGrid">
+        <!-- Main Menu -->
+        <Grid x:Name="MainMenuPanel" Visibility="Visible">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Text="TRANSPORT TYCOON" FontSize="52" FontWeight="Bold" Foreground="#8bc34a" TextAlignment="Center" Margin="0,0,0,5"/>
+                <TextBlock Text="BOSZI" FontSize="36" FontWeight="Bold" Foreground="#6a9a30" TextAlignment="Center" Margin="0,0,0,40"/>
+                <Button Content="Start New Game" Width="300" Height="55" Margin="0,8" FontSize="20" FontWeight="Bold" Click="StartNewGame_Click" Background="#4caf50" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                <Button Content="Load Game" Width="300" Height="55" Margin="0,8" FontSize="20" FontWeight="Bold" IsEnabled="False" Background="#78909c" Foreground="White" BorderThickness="0"/>
+                <Button Content="Quit Game" Width="300" Height="55" Margin="0,8" FontSize="20" FontWeight="Bold" Click="QuitGame_Click" Background="#d32f2f" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Game View -->
+        <Grid x:Name="GamePanel" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="42"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="50"/>
+            </Grid.RowDefinitions>
+
+            <!-- Top bar -->
+            <Border Grid.Row="0" Background="#1b1b1b">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="MoneyLabel" Grid.Column="0" Text="20,000 $" FontSize="18" FontWeight="Bold" Foreground="#4caf50" VerticalAlignment="Center" Margin="15,0"/>
+                    <TextBlock x:Name="DayLabel" Grid.Column="1" Text="Day: 1" FontSize="14" Foreground="#bbb" VerticalAlignment="Center" Margin="15,0"/>
+                    <TextBlock x:Name="StatusLabel" Grid.Column="2" Text="" FontSize="13" Foreground="#ffeb3b" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <Button Grid.Column="3" Content="▶" Width="32" Height="28" Margin="2" Click="SpeedNormal_Click" Background="#333" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    <Button Grid.Column="4" Content="▶▶" Width="38" Height="28" Margin="2" Click="SpeedFast_Click" Background="#333" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    <Button Grid.Column="5" Content="▶▶▶" Width="45" Height="28" Margin="2" Click="SpeedVeryFast_Click" Background="#333" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    <TextBlock x:Name="SpeedLabel" Grid.Column="6" Text="" FontSize="11" Foreground="#aaa" VerticalAlignment="Center" Margin="6,0"/>
+                    <Button Grid.Column="7" Content="PAUSE" Width="75" Height="28" Margin="6,0,10,0" Click="Pause_Click" Background="#d32f2f" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                </Grid>
+            </Border>
+
+            <!-- Map area: ClipToBounds canvas inside a border, manual scroll -->
+            <Grid Grid.Row="1" ClipToBounds="True">
+                <Canvas x:Name="GameCanvas" Background="#3a7a1a"
+                    MouseLeftButtonDown="GameCanvas_MouseLeftButtonDown"
+                    MouseRightButtonDown="Canvas_MouseRightDown"
+                    MouseRightButtonUp="Canvas_MouseRightUp"
+                    MouseMove="Canvas_MouseMove"
+                    MouseWheel="Canvas_MouseWheel"/>
+
+                <!-- Minimap bottom-right -->
+                <Border Background="#111" BorderBrush="#555" BorderThickness="1" Width="180" Height="150" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,10,10">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="MINIMAP" FontSize="10" Foreground="#777" HorizontalAlignment="Center" Margin="0,2"/>
+                        <Canvas x:Name="MinimapCanvas" Grid.Row="1" Background="#1a3a0a" Margin="3" MouseLeftButtonDown="Minimap_Click"/>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Bottom toolbar -->
+            <Border Grid.Row="2" Background="#1b1b1b">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Button Content="CAR" Width="90" Height="36" Margin="4,0" FontSize="14" FontWeight="Bold" Click="OpenVehicleShop_Click" Background="#2196f3" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    <Button Content="ROAD" Width="90" Height="36" Margin="4,0" FontSize="14" FontWeight="Bold" Click="BuildRoad_Click" Background="#795548" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    <Button Content="STOP" Width="90" Height="36" Margin="4,0" FontSize="14" FontWeight="Bold" Click="PlaceStop_Click" Background="#ff9800" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    <Button Content="CANCEL" Width="80" Height="36" Margin="12,0,0,0" FontSize="12" Click="CancelTool_Click" Background="#555" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    <TextBlock x:Name="UnplacedLabel" Text="" FontSize="12" Foreground="#ff5722" VerticalAlignment="Center" Margin="15,0,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Pause overlay -->
+            <Grid x:Name="PauseOverlay" Grid.Row="0" Grid.RowSpan="3" Visibility="Collapsed" Background="#88000000">
+                <Border Background="#222" CornerRadius="8" Width="320" Height="280" VerticalAlignment="Center">
+                    <StackPanel VerticalAlignment="Center" Margin="30">
+                        <TextBlock Text="GAME PAUSED" FontSize="28" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,25"/>
+                        <Button Content="Continue" Height="42" Margin="0,5" FontSize="16" Click="Resume_Click" Background="#4caf50" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <Button Content="Save Game" Height="42" Margin="0,5" FontSize="16" IsEnabled="False" Background="#78909c" Foreground="White" BorderThickness="0"/>
+                        <Button Content="Quit to Menu" Height="42" Margin="0,5" FontSize="16" Click="QuitToMenu_Click" Background="#d32f2f" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
