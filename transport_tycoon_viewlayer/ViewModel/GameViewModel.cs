@@ -34,11 +34,11 @@ namespace transport_tycoon_viewlayer.ViewModel
         private bool _isPaused;
         private bool _isGameOver;
 
-        // vehicle inventory - bought but not yet placed
+        
         private List<Vehicle> _unplacedVehicles;
         private Vehicle? _vehicleToPlace;
 
-        // stop material selection
+        
         private Material _selectedStopMaterial;
 
         public ToolMode CurrentTool
@@ -87,7 +87,7 @@ namespace transport_tycoon_viewlayer.ViewModel
         {
             ToolMode.BuildRoad => "Click a tile to build a road",
             ToolMode.PlaceStop => "Click next to a road/city to place a stop",
-            ToolMode.PlaceVehicle => "Click on a STOP (orange dot) to place vehicle",
+            ToolMode.PlaceVehicle => "Click on a STOP (red dot) to place vehicle",
             _ => ""
         };
 
@@ -176,7 +176,6 @@ namespace transport_tycoon_viewlayer.ViewModel
                     if (stopPlaced)
                     {
                         StatusText = $"Stop placed at ({gridX}, {gridY}) [-100$]";
-                        // stay in stop mode for multiple placements
                     }
                     else
                         StatusText = "Can't place stop here! Must be next to a road or city.";
@@ -191,8 +190,7 @@ namespace transport_tycoon_viewlayer.ViewModel
                             StatusText = $"Vehicle placed at ({gridX}, {gridY})! Build a route for it.";
                             _unplacedVehicles.Remove(_vehicleToPlace);
                             _vehicleToPlace = null;
-
-                            // if more unplaced vehicles, keep in mode
+                            
                             if (_unplacedVehicles.Count > 0)
                             {
                                 _vehicleToPlace = _unplacedVehicles[0];
@@ -210,7 +208,7 @@ namespace transport_tycoon_viewlayer.ViewModel
                             if (tile is Stop)
                                 StatusText = "Stop is already occupied!";
                             else
-                                StatusText = "Click on an orange STOP marker to place the vehicle!";
+                                StatusText = "Click on a red STOP marker to place the vehicle!";
                         }
                     }
                     break;
@@ -239,7 +237,6 @@ namespace transport_tycoon_viewlayer.ViewModel
         {
             _model = newModel;
 
-            // re-subscribe events
             _model.MoneyChanged += (s, e) => UpdateUI();
             _model.MapChanged += (s, e) => RequestMapRedraw?.Invoke();
             _model.VehicleMoved += (s, e) => RequestVehicleRedraw?.Invoke();

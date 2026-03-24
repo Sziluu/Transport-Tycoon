@@ -121,7 +121,7 @@ public abstract class Vehicle
         _loadedAmount = 0;
         _currentRouteStopIndex = 0;
         _currentPathIndex = 0;
-        _maintenanceCost = spec.Cost / 10; //fenntartsi kltsg a vtelr 10%-a
+        _maintenanceCost = spec.Cost / 10;
     }
 
     public void PlaceAtStop(Point stopPosition)
@@ -137,8 +137,7 @@ public abstract class Vehicle
         _assignedRoute = route;
         _currentRouteStopIndex = 0;
     }
-
-    //kvetkez megll fel induls
+    
     public void MoveToNextStop()
     {
         if (_assignedRoute == null || _assignedRoute.Stops.Count < 2) return;
@@ -152,7 +151,6 @@ public abstract class Vehicle
         _currentPathIndex = 0;
     }
 
-    // egy lps megttele az tvonalon
     public bool StepAlongPath()
     {
         if (!_isMoving || _pathToFollow.Count == 0) return false;
@@ -165,7 +163,6 @@ public abstract class Vehicle
         }
         else
         {
-            //megrkeztnk
             _isMoving = false;
             return false;
         }
@@ -177,7 +174,6 @@ public abstract class Vehicle
                _currentPosition == _assignedRoute.Stops[_currentRouteStopIndex];
     }
 
-    //rakods megllnl
     public int LoadGoods(int available)
     {
         int canLoad = _capacity - _loadedAmount;
@@ -248,7 +244,7 @@ public abstract class Vehicle
 
         if (d[target.X, target.Y] == int.MaxValue)
         {
-            return; //nem tallhat tvonal
+            return;
         }
 
         Point current = target;
@@ -303,7 +299,6 @@ public abstract class Vehicle
 
     public void MatchSpeed(Point aktual)
     {
-        //mozgsi irny felvtele - majd implementlni
     }
 }
 

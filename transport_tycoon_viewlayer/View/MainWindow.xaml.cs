@@ -73,13 +73,11 @@ namespace transport_tycoon_viewlayer.View
             });
         }
 
-        // ===== Menu =====
         private void StartNewGame_Click(object sender, RoutedEventArgs e)
         {
             MainMenuPanel.Visibility = Visibility.Collapsed;
             GamePanel.Visibility = Visibility.Visible;
             _viewModel.StartNewGame();
-            // center camera on map
             int sz = _viewModel.Model.Map.Size;
             _camX = sz * TW2;
             _camY = sz * TH2 / 2;
@@ -90,7 +88,7 @@ namespace transport_tycoon_viewlayer.View
         }
         private async void SaveGame_Click(object sender, RoutedEventArgs e)
         {
-            // ensure Saves folder exists
+            
             string savesDir = System.IO.Path.Combine(
                 AppDomain.CurrentDomain.BaseDirectory, "Saves");
             Directory.CreateDirectory(savesDir);
@@ -165,7 +163,6 @@ namespace transport_tycoon_viewlayer.View
             MainMenuPanel.Visibility = Visibility.Visible;
         }
 
-        // ===== Toolbar =====
         private void BuildRoad_Click(object sender, RoutedEventArgs e) => _viewModel.BuildRoadCommand.Execute(null);
         private void PlaceStop_Click(object sender, RoutedEventArgs e) => _viewModel.PlaceStopCommand.Execute(null);
         private void OpenVehicleShop_Click(object sender, RoutedEventArgs e) => OpenVehicleShop();
@@ -187,8 +184,7 @@ namespace transport_tycoon_viewlayer.View
             _viewModel.ResumeCommand.Execute(null);
             RenderViewport();
         }
-
-        // ===== Pan (right-click drag) =====
+        
         private void Canvas_MouseRightDown(object sender, MouseButtonEventArgs e)
         {
             _dragging = true;
@@ -209,15 +205,13 @@ namespace transport_tycoon_viewlayer.View
             _dragging = false;
             GameCanvas.ReleaseMouseCapture();
         }
-
-        // ===== Zoom (scroll wheel) =====
+        
         private void Canvas_MouseWheel(object sender, MouseWheelEventArgs e)
         {
             double oldZoom = _zoom;
             _zoom *= e.Delta > 0 ? 1.15 : 0.87;
             _zoom = Math.Clamp(_zoom, 0.15, 2.0);
 
-            // zoom toward mouse position
             var pos = e.GetPosition(GameCanvas);
             double wx = _camX + (pos.X - GameCanvas.ActualWidth / 2) / oldZoom;
             double wy = _camY + (pos.Y - GameCanvas.ActualHeight / 2) / oldZoom;
@@ -226,12 +220,11 @@ namespace transport_tycoon_viewlayer.View
 
             RenderViewport();
         }
-
-        // ===== Map click (left) =====
+        
         private void GameCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             var pos = e.GetPosition(GameCanvas);
-            // screen to world
+
             double wx = _camX + (pos.X - GameCanvas.ActualWidth / 2) / _zoom;
             double wy = _camY + (pos.Y - GameCanvas.ActualHeight / 2) / _zoom;
             var (gx, gy) = WorldToGrid(wx, wy);
@@ -257,7 +250,7 @@ namespace transport_tycoon_viewlayer.View
             RenderViewport();
         }
 
-        // ===== Iso conversions =====
+        
         private (double wx, double wy) GridToWorld(int gx, int gy)
         {
             int sz = _viewModel.Model.Map.Size;
@@ -272,8 +265,7 @@ namespace transport_tycoon_viewlayer.View
             double ax = wx - ox, ay = wy - 20;
             return ((int)Math.Floor((ax / TW2 + ay / TH2) / 2), (int)Math.Floor((ay / TH2 - ax / TW2) / 2));
         }
-
-        // ===== VIEWPORT RENDERING =====
+        
         private void RenderViewport()
         {
             GameCanvas.Children.Clear();
@@ -284,7 +276,7 @@ namespace transport_tycoon_viewlayer.View
             double cw = GameCanvas.ActualWidth > 0 ? GameCanvas.ActualWidth : 1280;
             double ch = GameCanvas.ActualHeight > 0 ? GameCanvas.ActualHeight : 600;
 
-            // determine visible grid range from camera + viewport
+            
             double halfW = cw / 2 / _zoom;
             double halfH = ch / 2 / _zoom;
             double worldLeft = _camX - halfW - TILE_W;
@@ -292,14 +284,14 @@ namespace transport_tycoon_viewlayer.View
             double worldTop = _camY - halfH - TILE_H * 2;
             double worldBot = _camY + halfH + TILE_H * 2;
 
-            // scan only potentially visible tiles
+            
             for (int gx = 0; gx < sz; gx++)
             {
                 for (int gy = 0; gy < sz; gy++)
                 {
                     var (wx, wy) = GridToWorld(gx, gy);
                     if (wx < worldLeft || wx > worldRight || wy < worldTop || wy > worldBot)
-                        continue; // skip off-screen tiles
+                        continue; 
 
                     double screenX = (wx - _camX) * _zoom + cw / 2;
                     double screenY = (wy - _camY) * _zoom + ch / 2;
@@ -320,7 +312,7 @@ namespace transport_tycoon_viewlayer.View
                         GameCanvas.Children.Add(gndImg);
                     }
 
-                    // building overlay
+                    
                     string? bldPath = GetBuildingSprite(tile);
                     if (bldPath != null)
                     {
@@ -337,11 +329,11 @@ namespace transport_tycoon_viewlayer.View
                         }
                     }
 
-                    // trees
+                    
                     if (tile is Field f && f.NumberOfTrees > 0)
                         DrawTrees(screenX, screenY, f.NumberOfTrees, z);
 
-                    // stop marker
+                    
                     if (tile is Stop)
                     {
                         bool highlight = _viewModel.CurrentTool == ToolMode.PlaceVehicle;
@@ -359,8 +351,7 @@ namespace transport_tycoon_viewlayer.View
                     }
                 }
             }
-
-            // vehicles
+            
             foreach (var v in _viewModel.Model.Vehicles)
             {
                 if (v.CurrentPosition == System.Drawing.Point.Empty) continue;
@@ -429,11 +420,10 @@ namespace transport_tycoon_viewlayer.View
 
         private string GetRoadTile(int x, int y, Map map)
         {
-            // isometric: x-axis goes NE-SW, y-axis goes NW-SE
-            bool n = IsRoadLike(map, x - 1, y); // upper-left in iso
-            bool s = IsRoadLike(map, x + 1, y); // lower-right
-            bool e = IsRoadLike(map, x, y - 1); // upper-right
-            bool w = IsRoadLike(map, x, y + 1); // lower-left
+            bool n = IsRoadLike(map, x - 1, y); 
+            bool s = IsRoadLike(map, x + 1, y); 
+            bool e = IsRoadLike(map, x, y - 1); 
+            bool w = IsRoadLike(map, x, y + 1); 
 
             if (n && e && s && w) return "crossroad.png";
             if (n && e && s) return "crossroadNES.png";
@@ -516,7 +506,7 @@ namespace transport_tycoon_viewlayer.View
             return Color.FromRgb(60, 140, 30);
         }
 
-        // ===== Sprite loading =====
+        
         private Image? LoadImage(string path, double w, double h)
         {
             var bmp = LoadBitmap(path);
