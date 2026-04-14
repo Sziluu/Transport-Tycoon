@@ -314,4 +314,66 @@ public class Map
                 if (_map[i, j] is Stop) stops.Add((i, j));
         return stops;
     }
+
+    // Returns all stops that are adjacent to an industry producing the given material.
+    // For Material.nothing (Bus) every stop is valid.
+    public List<(int x, int y)> GetValidStartStops(Material material)
+    {
+        var result = new List<(int x, int y)>();
+        for (int i = 0; i < _size; i++)
+            for (int j = 0; j < _size; j++)
+                if (_map[i, j] is Stop && IsAdjacentToProducer(i, j, material))
+                    result.Add((i, j));
+        return result;
+    }
+
+    // Returns all stops that are adjacent to an industry/facility that consumes the given material.
+    // For Material.nothing (Bus) every stop is valid.
+    public List<(int x, int y)> GetValidDestinationStops(Material material)
+    {
+        var result = new List<(int x, int y)>();
+        for (int i = 0; i < _size; i++)
+            for (int j = 0; j < _size; j++)
+                if (_map[i, j] is Stop && IsAdjacentToConsumer(i, j, material))
+                    result.Add((i, j));
+        return result;
+    }
+
+    private bool IsAdjacentToProducer(int x, int y, Material material)
+    {
+        if (material == Material.nothing) return true;
+        int[] dx = { -1, 1, 0, 0 };
+        int[] dy = { 0, 0, -1, 1 };
+        for (int k = 0; k < 4; k++)
+        {
+            int nx = x + dx[k], ny = y + dy[k];
+            if (nx < 0 || nx >= _size || ny < 0 || ny >= _size) continue;
+            var tile = _map[nx, ny];
+            if (tile is Mine mine && mine.Kind == material) return true;
+            if (tile is Farm farm && farm.Kind == material) return true;
+            if (tile is Factory fac && fac.Kind == material) return true;
+        }
+        return false;
+    }
+
+    private bool IsAdjacentToConsumer(int x, int y, Material material)
+    {
+        if (material == Material.nothing) return true;
+        int[] dx = { -1, 1, 0, 0 };
+        int[] dy = { 0, 0, -1, 1 };
+        for (int k = 0; k < 4; k++)
+        {
+            int nx = x + dx[k], ny = y + dy[k];
+            if (nx < 0 || nx >= _size || ny < 0 || ny >= _size) continue;
+            var tile = _map[nx, ny];
+            if (tile is Factory fac && fac.Using == material) return true;
+            // Cities (House tiles) consume finished goods
+            if (tile is House && IsFinishedGood(material)) return true;
+        }
+        return false;
+    }
+
+    private static bool IsFinishedGood(Material material) =>
+        material == Material.iron || material == Material.bread ||
+        material == Material.paper || material == Material.coal;
 }

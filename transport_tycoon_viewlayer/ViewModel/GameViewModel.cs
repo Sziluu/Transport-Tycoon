@@ -18,7 +18,8 @@ namespace transport_tycoon_viewlayer.ViewModel
         None,
         BuildRoad,
         PlaceStop,
-        PlaceVehicle
+        PlaceVehicle,       // Phase 1: pick the start stop for the vehicle
+        SelectDestination   // Phase 2: pick the destination stop to create the route
     }
 
     public class GameViewModel : ViewModelBase
@@ -34,11 +35,16 @@ namespace transport_tycoon_viewlayer.ViewModel
         private bool _isPaused;
         private bool _isGameOver;
 
-        
+
         private List<Vehicle> _unplacedVehicles;
         private Vehicle? _vehicleToPlace;
+        private System.Drawing.Point _vehicleStartStop; // position of the placed start stop (used in phase 2)
 
-        
+        // Valid stops for the current placement phase (exposed for the View to highlight)
+        public HashSet<(int x, int y)> ValidStartStops { get; private set; } = new();
+        public HashSet<(int x, int y)> ValidDestinationStops { get; private set; } = new();
+
+
         private Material _selectedStopMaterial;
 
         public ToolMode CurrentTool
@@ -87,7 +93,8 @@ namespace transport_tycoon_viewlayer.ViewModel
         {
             ToolMode.BuildRoad => "Click a tile to build a road",
             ToolMode.PlaceStop => "Click next to a road/city to place a stop",
-            ToolMode.PlaceVehicle => "Click on a STOP (red dot) to place vehicle",
+            ToolMode.PlaceVehicle => "Click a GREEN stop (valid producer) to place the vehicle",
+            ToolMode.SelectDestination => "Click a BLUE stop (valid consumer) to set the destination",
             _ => ""
         };
 
@@ -184,32 +191,92 @@ namespace transport_tycoon_viewlayer.ViewModel
                 case ToolMode.PlaceVehicle:
                     if (_vehicleToPlace != null)
                     {
+                        if (!ValidStartStops.Contains((gridX, gridY)))
+                        {
+                            var tile = _model.Map.GetTile(gridX, gridY);
+                            StatusText = tile is Stop
+                                ? "That stop is not next to a valid producer for this vehicle type!"
+                                : "Click a GREEN stop (valid producer) to place the vehicle.";
+                            break;
+                        }
+
                         bool placed = _model.PlaceVehicleAtStop(_vehicleToPlace, gridX, gridY);
                         if (placed)
                         {
-                            StatusText = $"Vehicle placed at ({gridX}, {gridY})! Build a route for it.";
+                            _vehicleStartStop = new System.Drawing.Point(gridX, gridY);
                             _unplacedVehicles.Remove(_vehicleToPlace);
-                            _vehicleToPlace = null;
-                            
-                            if (_unplacedVehicles.Count > 0)
+
+                            // Compute valid destination stops and switch to phase 2
+                            var destList = _model.Map.GetValidDestinationStops(_vehicleToPlace.CarriedMaterial);
+                            ValidDestinationStops = new HashSet<(int x, int y)>(destList);
+
+                            if (ValidDestinationStops.Count == 0)
                             {
-                                _vehicleToPlace = _unplacedVehicles[0];
-                                StatusText += $" ({_unplacedVehicles.Count} more to place)";
+                                StatusText = "Vehicle placed, but no valid destination stops exist yet. Build a stop near a consumer first.";
+                                _vehicleToPlace = null;
+                                SetTool(ToolMode.None);
                             }
                             else
                             {
-                                SetTool(ToolMode.None);
+                                StatusText = $"Vehicle placed at ({gridX}, {gridY})! Now click a BLUE stop as the destination.";
+                                SetTool(ToolMode.SelectDestination);
                             }
+
                             RequestVehicleRedraw?.Invoke();
                         }
                         else
                         {
-                            var tile = _model.Map.GetTile(gridX, gridY);
-                            if (tile is Stop)
-                                StatusText = "Stop is already occupied!";
-                            else
-                                StatusText = "Click on a red STOP marker to place the vehicle!";
+                            StatusText = "Could not place vehicle here!";
                         }
+                    }
+                    break;
+
+                case ToolMode.SelectDestination:
+                    if (_vehicleToPlace != null)
+                    {
+                        if (!ValidDestinationStops.Contains((gridX, gridY)))
+                        {
+                            var tile = _model.Map.GetTile(gridX, gridY);
+                            StatusText = tile is Stop
+                                ? "That stop is not next to a valid consumer for this vehicle type!"
+                                : "Click a BLUE stop (valid consumer) to set the destination.";
+                            break;
+                        }
+
+                        // Create a two-stop route and assign it to the vehicle
+                        var destPoint = new System.Drawing.Point(gridX, gridY);
+                        var stopList = new List<System.Drawing.Point> { _vehicleStartStop, destPoint };
+                        bool routeOk = CreateAndAssignRoute(_vehicleToPlace, stopList);
+
+                        if (routeOk)
+                        {
+                            StatusText = $"Route created: ({_vehicleStartStop.X},{_vehicleStartStop.Y}) → ({gridX},{gridY}). Vehicle is on its way!";
+                        }
+                        else
+                        {
+                            StatusText = "Could not create route (no road connection?). Try a different destination.";
+                            break; // stay in SelectDestination so the player can try again
+                        }
+
+                        _vehicleToPlace = null;
+                        _vehicleStartStop = System.Drawing.Point.Empty;
+
+                        if (_unplacedVehicles.Count > 0)
+                        {
+                            // More vehicles to place — restart phase 1 for the next one
+                            _vehicleToPlace = _unplacedVehicles[0];
+                            var startList = _model.Map.GetValidStartStops(_vehicleToPlace.CarriedMaterial);
+                            ValidStartStops = new HashSet<(int x, int y)>(startList);
+                            ValidDestinationStops = new HashSet<(int x, int y)>();
+                            SetTool(ToolMode.PlaceVehicle);
+                            StatusText += $" ({_unplacedVehicles.Count} more to place)";
+                        }
+                        else
+                        {
+                            SetTool(ToolMode.None);
+                        }
+
+                        RequestVehicleRedraw?.Invoke();
                     }
                     break;
 
@@ -256,15 +323,20 @@ namespace transport_tycoon_viewlayer.ViewModel
             {
                 _unplacedVehicles.Add(vehicle);
                 _vehicleToPlace = vehicle;
+
+                // Compute valid start stops (must be adjacent to a producer of the vehicle's material)
+                var startList = _model.Map.GetValidStartStops(vehicle.CarriedMaterial);
+                ValidStartStops = new HashSet<(int x, int y)>(startList);
+                ValidDestinationStops = new HashSet<(int x, int y)>();
+
                 SetTool(ToolMode.PlaceVehicle);
 
-                var stops = _model.Map.GetAllStops();
-                if (stops.Count == 0)
-                    StatusText = $"{vehicleType} purchased! No stops exist yet - build ROAD then STOP first!";
+                if (ValidStartStops.Count == 0)
+                    StatusText = $"{vehicleType} purchased! No valid producer stops exist yet — build a stop next to a {vehicle.CarriedMaterial} producer first.";
                 else
-                    StatusText = $"{vehicleType} purchased! Click an orange STOP to place it. ({_unplacedVehicles.Count} to place)";
+                    StatusText = $"{vehicleType} purchased! Click a GREEN stop (next to a {vehicle.CarriedMaterial} producer) to place it.";
 
-                RequestMapRedraw?.Invoke(); // redraw to show stop highlights
+                RequestMapRedraw?.Invoke();
             }
             else
             {
@@ -279,8 +351,13 @@ namespace transport_tycoon_viewlayer.ViewModel
             if (_unplacedVehicles.Contains(vehicle))
             {
                 _vehicleToPlace = vehicle;
+                var startList = _model.Map.GetValidStartStops(vehicle.CarriedMaterial);
+                ValidStartStops = new HashSet<(int x, int y)>(startList);
+                ValidDestinationStops = new HashSet<(int x, int y)>();
                 SetTool(ToolMode.PlaceVehicle);
-                StatusText = "Click on an orange STOP to place the vehicle.";
+                StatusText = ValidStartStops.Count > 0
+                    ? $"Click a GREEN stop (next to a {vehicle.CarriedMaterial} producer) to place the vehicle."
+                    : $"No valid producer stops for {vehicle.CarriedMaterial}. Build a stop next to a producer first.";
                 RequestMapRedraw?.Invoke();
             }
         }
@@ -301,6 +378,9 @@ namespace transport_tycoon_viewlayer.ViewModel
             {
                 StatusText = "";
                 _vehicleToPlace = null;
+                _vehicleStartStop = System.Drawing.Point.Empty;
+                ValidStartStops = new HashSet<(int x, int y)>();
+                ValidDestinationStops = new HashSet<(int x, int y)>();
             }
             RequestMapRedraw?.Invoke();
         }

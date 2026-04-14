@@ -334,18 +334,33 @@ namespace transport_tycoon_viewlayer.View
                     if (tile is Field f && f.NumberOfTrees > 0)
                         DrawTrees(screenX, screenY, f.NumberOfTrees, z);
 
-                    
+
                     if (tile is Stop)
                     {
-                        bool highlight = _viewModel.CurrentTool == ToolMode.PlaceVehicle;
                         double dotSize = 14 * _zoom;
-                        if (highlight)
+
+                        bool isValidStart = _viewModel.CurrentTool == ToolMode.PlaceVehicle &&
+                                           _viewModel.ValidStartStops.Contains((gx, gy));
+                        bool isValidDest  = _viewModel.CurrentTool == ToolMode.SelectDestination &&
+                                           _viewModel.ValidDestinationStops.Contains((gx, gy));
+
+                        if (isValidStart || isValidDest)
                         {
                             double ringSize = 28 * _zoom;
-                            var ring = new Ellipse { Width = ringSize, Height = ringSize, Fill = new SolidColorBrush(Color.FromArgb(80, 0, 255, 0)), Stroke = Brushes.Lime, StrokeThickness = 2 };
-                            Canvas.SetLeft(ring, screenX - ringSize / 2); Canvas.SetTop(ring, screenY + TH2 * _zoom - ringSize / 2);
-                            Canvas.SetZIndex(ring, z * 2 + 9); GameCanvas.Children.Add(ring);
+                            Color ringFill   = isValidStart ? Color.FromArgb(80, 0, 255, 0) : Color.FromArgb(80, 0, 150, 255);
+                            Brush ringStroke = isValidStart ? Brushes.Lime : Brushes.DeepSkyBlue;
+                            var ring = new Ellipse
+                            {
+                                Width = ringSize, Height = ringSize,
+                                Fill = new SolidColorBrush(ringFill),
+                                Stroke = ringStroke, StrokeThickness = 2
+                            };
+                            Canvas.SetLeft(ring, screenX - ringSize / 2);
+                            Canvas.SetTop(ring, screenY + TH2 * _zoom - ringSize / 2);
+                            Canvas.SetZIndex(ring, z * 2 + 9);
+                            GameCanvas.Children.Add(ring);
                         }
+
                         var dot = new Ellipse { Width = dotSize, Height = dotSize, Fill = Brushes.OrangeRed, Stroke = Brushes.White, StrokeThickness = 2 * _zoom };
                         Canvas.SetLeft(dot, screenX - dotSize / 2); Canvas.SetTop(dot, screenY + TH2 * _zoom - dotSize / 2);
                         Canvas.SetZIndex(dot, z * 2 + 10); GameCanvas.Children.Add(dot);
@@ -381,8 +396,8 @@ namespace transport_tycoon_viewlayer.View
 
         private void DrawTrees(double sx, double sy, int count, int z)
         {
-            string[] trees = { "kenney_isometric-roads/png/treeTall.png", "kenney_isometric-roads/png/coniferTall.png",
-                           "kenney_isometric-roads/png/treeShort.png", "kenney_isometric-roads/png/coniferShort.png" };
+            string[] trees = { "custom/nature/tree_deciduous.png", "custom/nature/tree_pine.png",
+                           "custom/nature/tree_deciduous.png", "custom/nature/tree_pine.png" };
             double[] ox = { -12, 12, -5, 10 };
             double[] oy = { -5, 0, 8, 5 };
             for (int i = 0; i < Math.Min(count, 4); i++)
@@ -410,12 +425,26 @@ namespace transport_tycoon_viewlayer.View
 
         private string? GetBuildingSprite(MapObject tile)
         {
-            string d = "kenney_isometric-buildings-1/PNG/";
-            if (tile is House) return d + "buildingTiles_024.png";
-            if (tile is Factory) return d + "buildingTiles_108.png";
-            if (tile is Mine) return d + "buildingTiles_100.png";
-            if (tile is Farm) return d + "buildingTiles_036.png";
-            if (tile is Garage) return d + "buildingTiles_048.png";
+            string d = "custom/buildings/";
+            if (tile is House) return d + "house.png";
+            if (tile is Garage) return d + "garage.png";
+            if (tile is Factory f)
+            {
+                if (f.Kind == Material.iron) return d + "iron_smelter.png";
+                if (f.Kind == Material.bread) return d + "bakery.png";
+                if (f.Kind == Material.paper) return d + "paper_mill.png";
+                return d + "iron_smelter.png";
+            }
+            if (tile is Mine m)
+            {
+                if (m.Kind == Material.coal) return d + "coal_mine.png";
+                return d + "iron_ore_mine.png";
+            }
+            if (tile is Farm fa)
+            {
+                if (fa.Kind == Material.wood) return d + "lumber_camp.png";
+                return d + "wheat_farm.png";
+            }
             return null;
         }
 
@@ -450,13 +479,16 @@ namespace transport_tycoon_viewlayer.View
 
         private string GetVehicleSprite(Vehicle v)
         {
-            string d = "kenney_isometric-vehicles-1/PNG/";
-            if (v is Bus) return d + "Taxi/taxi_NE.png";
-            if (v is IronTransporter or IronOreTransporter) return d + "Civilian/Black/Truck 1/carBlack6_002.png";
-            if (v is CoalTransporter) return d + "Civilian/Black/Truck 1/carBlack6_006.png";
-            if (v is WoodTransporter or PaperTransporter) return d + "Civilian/Green/Truck 1/carGreen6_002.png";
-            if (v is WheatTransporter or BreadTransporter) return d + "Civilian/Red/Truck 1/carRed6_002.png";
-            return d + "Civilian/Blue/Truck 1/carBlue6_002.png";
+            string d = "custom/vehicles/";
+            if (v is Bus) return d + "bus.png";
+            if (v is BreadTransporter) return d + "bread_transporter.png";
+            if (v is CoalTransporter) return d + "coal_transporter.png";
+            if (v is IronOreTransporter) return d + "iron_ore_transporter.png";
+            if (v is IronTransporter) return d + "iron_transporter.png";
+            if (v is PaperTransporter) return d + "paper_transporter.png";
+            if (v is WheatTransporter) return d + "wheat_transporter.png";
+            if (v is WoodTransporter) return d + "wood_transporter.png";
+            return d + "bus.png";
         }
 
         // ===== Minimap =====
