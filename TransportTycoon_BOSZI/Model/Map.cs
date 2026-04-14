@@ -27,7 +27,7 @@ public class Map
         _map = new MapObject[_size, _size];
         _cities.Clear(); _industries.Clear(); _industryPositions.Clear();
 
-        // 1) Perlin-like noise for terrain variety
+        //  Perlin-like noise
         double[,] noise = GenerateNoise();
 
         for (int i = 0; i < _size; i++)
@@ -45,31 +45,27 @@ public class Map
                 }
             }
 
-        // 2) cities
-        int cityCount = Math.Max(5, _size / 20);
+        int cityCount = Math.Max(5, _size / 10);
         for (int i = 0; i < cityCount; i++) TryPlaceCity();
 
-        // 3) industries
         int industryCount = Math.Max(8, _size / 10);
         for (int i = 0; i < industryCount; i++) TryPlaceIndustry();
 
-        // 4) road network
         BuildRoadNetwork();
 
-        // 5) auto-place stops near every city and industry
         PlaceAutoStops();
 
         return _map;
     }
 
-    // ========== Perlin-like noise ==========
+    // tenyleges perline noise
     private double[,] GenerateNoise()
     {
         double[,] result = new double[_size, _size];
         int octaves = 3;
         double persistence = 0.5;
 
-        // random gradient grid (coarse)
+       
         int gridSize = 16;
         double[,] gradients = new double[gridSize + 1, gridSize + 1];
         for (int i = 0; i <= gridSize; i++)
@@ -96,7 +92,7 @@ public class Map
                     double fx = sampleX - Math.Floor(sampleX);
                     double fy = sampleY - Math.Floor(sampleY);
 
-                    fx = fx * fx * (3 - 2 * fx); // smoothstep
+                    fx = fx * fx * (3 - 2 * fx);
                     fy = fy * fy * (3 - 2 * fy);
 
                     double v00 = gradients[x0, y0];
@@ -117,8 +113,7 @@ public class Map
             }
         return result;
     }
-
-    // ========== City ==========
+    
     private void TryPlaceCity()
     {
         for (int attempt = 0; attempt < 200; attempt++)
@@ -127,8 +122,7 @@ public class Map
             int cy = _rand.Next(5, _size - 5);
             if (!IsAreaLand(cx - 1, cy - 1, 5, 5)) continue;
             if (TooClose(cx, cy, 15)) continue;
-
-            // place 3x3: houses at corners, roads in cross
+            
             _map[cx, cy] = new House { IsPartOfCity = true };
             _map[cx + 1, cy] = new Road { IsPartOfCity = true };
             _map[cx + 2, cy] = new House { IsPartOfCity = true };
@@ -143,8 +137,7 @@ public class Map
             return;
         }
     }
-
-    // ========== Industry ==========
+    
     private void TryPlaceIndustry()
     {
         for (int attempt = 0; attempt < 200; attempt++)
@@ -193,8 +186,7 @@ public class Map
             if (Math.Max(Math.Abs(ip.x - x), Math.Abs(ip.y - y)) < minDist) return true;
         return false;
     }
-
-    // ========== Roads (MST) ==========
+    
     private void BuildRoadNetwork()
     {
         List<(int x, int y)> nodes = new();
@@ -235,7 +227,6 @@ public class Map
             _map[x, y] = new Road();
     }
 
-    // ========== Auto-Stops ==========
     private void PlaceAutoStops()
     {
         foreach (var city in _cities)
@@ -247,12 +238,12 @@ public class Map
         }
         foreach (var ip in _industryPositions)
         {
-            // Try all four sides of the 2x2 industry block
+            
             if (!TryPlaceAutoStop(ip.x - 1, ip.y) &&
                 !TryPlaceAutoStop(ip.x, ip.y - 1) &&
                 !TryPlaceAutoStop(ip.x + 2, ip.y) &&
                 !TryPlaceAutoStop(ip.x, ip.y + 2))
-            { /* no suitable adjacent field */ }
+            {  }
         }
     }
 
@@ -265,7 +256,6 @@ public class Map
         return true;
     }
 
-    // ========== Player Actions ==========
     public bool BuildRoad(int x, int y)
     {
         if (x < 0 || x >= _size || y < 0 || y >= _size) return false;
