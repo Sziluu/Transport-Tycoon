@@ -13,7 +13,7 @@ using TransportTycoon_BOSZI.Model.MapObjects;
 
 namespace transport_tycoon_viewlayer.ViewModel
 {
-    public enum ToolMode
+    public enum ToolMode //kattintások éppen mit csinálnak
     {
         None,
         BuildRoad,

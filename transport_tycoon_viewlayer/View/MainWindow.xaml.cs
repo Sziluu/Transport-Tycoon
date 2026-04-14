@@ -43,7 +43,7 @@ namespace transport_tycoon_viewlayer.View
         private string _assetsBase = "";
 
         // minimap
-        private WriteableBitmap? _minimapBitmap;
+        private WriteableBitmap? _minimapBitmap; //pixelként rajzolja a minimapot, szín = tiel típus
         private Image? _minimapImage;
         private bool _mapDirty = true;
 
@@ -274,7 +274,7 @@ namespace transport_tycoon_viewlayer.View
         }
 
         // ===== VIEWPORT RENDERING =====
-        private void RenderViewport()
+        private void RenderViewport() //csak a kamerából látható tileokat rajzolja ki koordinata tartomény szűréssel
         {
             GameCanvas.Children.Clear();
             if (_viewModel.Model?.Map?.GetMap == null) return;
