@@ -8,7 +8,7 @@ class Program
     static void Main(string[] args)
     {
         Map myMap = new Map(50, 10);
-        MapObject[,] realmap = myMap.createMap();
+        MapObject[,] realmap = myMap.CreateMap();
         for (int i = 0;i<50; ++i)
         {
             for (int j = 0; j < 50; ++j)

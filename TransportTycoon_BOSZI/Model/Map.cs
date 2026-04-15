@@ -22,7 +22,7 @@ public class Map
 
     public Map(int size, int money) { _size = size; _money = money; }
 
-    public MapObject[,] createMap()
+    public MapObject[,] CreateMap()
     {
         _map = new MapObject[_size, _size];
         _cities.Clear(); _industries.Clear(); _industryPositions.Clear();

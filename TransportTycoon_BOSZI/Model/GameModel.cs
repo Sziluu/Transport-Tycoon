@@ -32,7 +32,7 @@ public class GameModel
 
     public void StartNewGame()
     {
-        _map.createMap();
+        _map.CreateMap();
         _time.Normal();
         MapChanged?.Invoke(this, EventArgs.Empty);
     }
