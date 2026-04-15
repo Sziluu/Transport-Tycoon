@@ -10,7 +10,6 @@
     WindowState="Maximized"
     Background="#2d5016">
     <Grid x:Name="MainGrid">
-        <!-- Main Menu -->
         <Grid x:Name="MainMenuPanel" Visibility="Visible">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                 <TextBlock Text="TRANSPORT TYCOON" FontSize="52" FontWeight="Bold" Foreground="#8bc34a" TextAlignment="Center" Margin="0,0,0,5"/>
@@ -21,7 +20,6 @@
             </StackPanel>
         </Grid>
 
-        <!-- Game View -->
         <Grid x:Name="GamePanel" Visibility="Collapsed">
             <Grid.RowDefinitions>
                 <RowDefinition Height="42"/>
@@ -29,7 +27,6 @@
                 <RowDefinition Height="50"/>
             </Grid.RowDefinitions>
 
-            <!-- Top bar -->
             <Border Grid.Row="0" Background="#1b1b1b">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -53,8 +50,7 @@
                 </Grid>
             </Border>
 
-            <!-- Map area: ClipToBounds canvas inside a border, manual scroll -->
-            <Grid Grid.Row="1" ClipToBounds="True">
+            <Grid Grid.Row="1" ClipToBounds="True" Background="#3a7a1a">
                 <Canvas x:Name="GameCanvas" Background="#3a7a1a"
                     MouseLeftButtonDown="GameCanvas_MouseLeftButtonDown"
                     MouseRightButtonDown="Canvas_MouseRightDown"
@@ -62,7 +58,6 @@
                     MouseMove="Canvas_MouseMove"
                     MouseWheel="Canvas_MouseWheel"/>
 
-                <!-- Minimap bottom-right -->
                 <Border Background="#111" BorderBrush="#555" BorderThickness="1" Width="180" Height="150" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,10,10">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -75,7 +70,6 @@
                 </Border>
             </Grid>
 
-            <!-- Bottom toolbar -->
             <Border Grid.Row="2" Background="#1b1b1b">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <Button Content="CAR" Width="90" Height="36" Margin="4,0" FontSize="14" FontWeight="Bold" Click="OpenVehicleShop_Click" Background="#2196f3" Foreground="White" BorderThickness="0" Cursor="Hand"/>
@@ -86,7 +80,6 @@
                 </StackPanel>
             </Border>
 
-            <!-- Pause overlay -->
             <Grid x:Name="PauseOverlay" Grid.Row="0" Grid.RowSpan="3" Visibility="Collapsed" Background="#88000000">
                 <Border Background="#222" CornerRadius="8" Width="320" Height="280" VerticalAlignment="Center">
                     <StackPanel VerticalAlignment="Center" Margin="30">
