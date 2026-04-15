@@ -21,9 +21,6 @@ using TransportTycoon_BOSZI.Persistance;
 
 namespace transport_tycoon_viewlayer.View
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
         private GameViewModel _viewModel;
@@ -31,19 +28,16 @@ namespace transport_tycoon_viewlayer.View
         private const double TILE_W = 100, TILE_H = 65;
         private const double TW2 = 50, TH2 = 32;
 
-        // camera
-        private double _camX, _camY; // world offset
+        private double _camX, _camY;
         private double _zoom = 0.6;
         private bool _dragging;
         private Point _dragStart;
         private double _dragCamX, _dragCamY;
 
-        // sprite cache
         private Dictionary<string, BitmapImage?> _spriteCache = new();
         private string _assetsBase = "";
 
-        // minimap
-        private WriteableBitmap? _minimapBitmap; //pixelként rajzolja a minimapot, szín = tiel típus
+        private WriteableBitmap? _minimapBitmap; 
         private Image? _minimapImage;
         private bool _mapDirty = true;
 
@@ -55,7 +49,7 @@ namespace transport_tycoon_viewlayer.View
                           System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "Assets"));
 
             _viewModel.RequestMapRedraw += () => Dispatcher.Invoke(() => { _mapDirty = true; RenderViewport(); });
-            _viewModel.RequestVehicleRedraw += () => Dispatcher.Invoke(RenderViewport);
+            _viewModel.RequestVehicleRedraw += () => Dispatcher.Invoke(UpdateVehiclesOnly);
             _viewModel.RequestPauseMenu += () => PauseOverlay.Visibility = Visibility.Visible;
             _viewModel.RequestOpenVehicleShop += OpenVehicleShop;
 
@@ -137,7 +131,6 @@ namespace transport_tycoon_viewlayer.View
                 MainMenuPanel.Visibility = Visibility.Collapsed;
                 GamePanel.Visibility = Visibility.Visible;
 
-                // reset camera to center of loaded map
                 int sz = _viewModel.Model.Map.Size;
                 _camX = sz * TW2;
                 _camY = sz * TH2 / 2;
@@ -176,7 +169,7 @@ namespace transport_tycoon_viewlayer.View
 
         private void OpenVehicleShop()
         {
-            _viewModel.PauseCommand.Execute(null); // pause game during shop!
+            _viewModel.PauseCommand.Execute(null);
             PauseOverlay.Visibility = Visibility.Collapsed;
             var shop = new VehicleShopWindow(_viewModel);
             shop.Owner = this;
@@ -188,22 +181,33 @@ namespace transport_tycoon_viewlayer.View
         private void Canvas_MouseRightDown(object sender, MouseButtonEventArgs e)
         {
             _dragging = true;
-            _dragStart = e.GetPosition(GameCanvas);
+            _dragStart = e.GetPosition(this);
             _dragCamX = _camX; _dragCamY = _camY;
             GameCanvas.CaptureMouse();
         }
+
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
             if (!_dragging) return;
-            var pos = e.GetPosition(GameCanvas);
-            _camX = _dragCamX + (_dragStart.X - pos.X) / _zoom;
-            _camY = _dragCamY + (_dragStart.Y - pos.Y) / _zoom;
-            RenderViewport();
+            var pos = e.GetPosition(this); 
+
+            GameCanvas.RenderTransform = new TranslateTransform(
+                pos.X - _dragStart.X,
+                pos.Y - _dragStart.Y);
         }
+
         private void Canvas_MouseRightUp(object sender, MouseButtonEventArgs e)
         {
+            if (!_dragging) return;
             _dragging = false;
             GameCanvas.ReleaseMouseCapture();
+
+            var pos = e.GetPosition(this); 
+            _camX = _dragCamX + (_dragStart.X - pos.X) / _zoom;
+            _camY = _dragCamY + (_dragStart.Y - pos.Y) / _zoom;
+
+            GameCanvas.RenderTransform = Transform.Identity;
+            RenderViewport();
         }
         
         private void Canvas_MouseWheel(object sender, MouseWheelEventArgs e)
@@ -266,8 +270,7 @@ namespace transport_tycoon_viewlayer.View
             return ((int)Math.Floor((ax / TW2 + ay / TH2) / 2), (int)Math.Floor((ay / TH2 - ax / TW2) / 2));
         }
 
-        // ===== VIEWPORT RENDERING =====
-        private void RenderViewport() //csak a kamerából látható tileokat rajzolja ki koordinata tartomény szűréssel
+        private void RenderViewport()
         {
             GameCanvas.Children.Clear();
             if (_viewModel.Model?.Map?.GetMap == null) return;
@@ -302,7 +305,6 @@ namespace transport_tycoon_viewlayer.View
                     MapObject tile = map.GetMap[gx, gy];
                     int z = gx + gy;
 
-                    // ground sprite
                     string gndPath = GetGroundSprite(tile, gx, gy, map);
                     var gndImg = LoadImage(gndPath, tileW, tileH);
                     if (gndImg != null)
@@ -491,7 +493,6 @@ namespace transport_tycoon_viewlayer.View
             return d + "bus.png";
         }
 
-        // ===== Minimap =====
         private void RenderMinimap()
         {
             var map = _viewModel.Model.Map;
@@ -560,6 +561,39 @@ namespace transport_tycoon_viewlayer.View
                 _spriteCache[rel] = b; return b;
             }
             catch { _spriteCache[rel] = null; return null; }
+        }
+        private void UpdateVehiclesOnly()
+        {
+            if (_viewModel.Model?.Vehicles == null) return;
+    
+            var map = _viewModel.Model.Map;
+            double cw = GameCanvas.ActualWidth > 0 ? GameCanvas.ActualWidth : 1280;
+            double ch = GameCanvas.ActualHeight > 0 ? GameCanvas.ActualHeight : 600;
+            
+            var toRemove = GameCanvas.Children.OfType<FrameworkElement>()
+                .Where(el => el.Tag is string s && s == "vehicle").ToList();
+            foreach (var v in toRemove)
+                GameCanvas.Children.Remove(v);
+
+            foreach (var v in _viewModel.Model.Vehicles)
+            {
+                if (v.CurrentPosition == System.Drawing.Point.Empty) continue;
+                var (wx, wy) = GridToWorld(v.CurrentPosition.X, v.CurrentPosition.Y);
+                double sx = (wx - _camX) * _zoom + cw / 2;
+                double sy = (wy - _camY) * _zoom + ch / 2;
+                if (sx < -50 || sx > cw + 50 || sy < -50 || sy > ch + 50) continue;
+
+                double vw = 38 * _zoom, vh = 30 * _zoom;
+                var vImg = LoadImage(GetVehicleSprite(v), vw, vh);
+                if (vImg != null)
+                {
+                    vImg.Tag = "vehicle";
+                    Canvas.SetLeft(vImg, sx - vw / 2);
+                    Canvas.SetTop(vImg, sy + TH2 * _zoom - vh / 2);
+                    Canvas.SetZIndex(vImg, (v.CurrentPosition.X + v.CurrentPosition.Y) * 2 + 50);
+                    GameCanvas.Children.Add(vImg);
+                }
+            }
         }
     }
 }

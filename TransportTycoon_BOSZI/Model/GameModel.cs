@@ -132,22 +132,26 @@ public class GameModel
 
     private void UpdateVehicles()
     {
+        bool anyMoved = false;
         foreach (var vehicle in _vehicles)
         {
             if (vehicle.AssignedRoute == null) continue;
-
             if (vehicle.IsMoving)
             {
                 bool moved = vehicle.StepAlongPath();
-                if (moved) VehicleMoved?.Invoke(this, vehicle);
-                if (vehicle.HasArrivedAtStop()) HandleStopArrival(vehicle);
+                if (moved) anyMoved = true;
+                if (vehicle.HasArrivedAtStop())
+                    HandleStopArrival(vehicle);
             }
             else if (vehicle.AssignedRoute.IsValid())
             {
                 vehicle.MoveToNextStop();
-                vehicle.OptimalPathFind(vehicle.Start, vehicle.Target, _map.GetMap);
+                if (vehicle.PathToFollow.Count == 0)
+                    vehicle.OptimalPathFind(vehicle.Start, vehicle.Target, _map.GetMap);
             }
         }
+        if (anyMoved)
+            VehicleMoved?.Invoke(this, null!);
     }
 
     private void HandleStopArrival(Vehicle vehicle)
@@ -176,7 +180,8 @@ public class GameModel
         {
             int nx = stopPos.X + dx[k];
             int ny = stopPos.Y + dy[k];
-
+            if (nx < 0 || nx >= _map.Size || ny < 0 || ny >= _map.Size)
+                continue;
             MapObject? neighbor = _map.GetMap[nx, ny];
             if (neighbor is industrial_MapObject industry)
             {

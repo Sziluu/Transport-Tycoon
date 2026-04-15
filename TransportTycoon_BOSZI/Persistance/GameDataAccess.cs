@@ -21,7 +21,6 @@ public class GameDataAccess : IGameDataAccess
         _model = model;
     }
 
-    // ========== SAVE ==========
     public async Task SaveGameAsync(string filePath)
     {
         await Task.Run(() =>
@@ -29,21 +28,17 @@ public class GameDataAccess : IGameDataAccess
             using var stream = File.Open(filePath, FileMode.Create);
             using var w = new BinaryWriter(stream);
 
-            // header
             w.Write(System.Text.Encoding.ASCII.GetBytes(SIGNATURE));
             w.Write(VERSION);
 
-            // time
             w.Write(_model.Time.Day);
             w.Write(_model.Time.TickCounter);
             w.Write((byte)_model.Time.CurrentSpeed);
 
-            // map basics
             var map = _model.Map;
             w.Write(map.Size);
             w.Write(map.Money);
 
-            // tiles
             for (int i = 0; i < map.Size; i++)
             {
                 for (int j = 0; j < map.Size; j++)
@@ -53,7 +48,6 @@ public class GameDataAccess : IGameDataAccess
                 }
             }
 
-            // cities
             w.Write(map.Cities.Count);
             foreach (var city in map.Cities)
             {
@@ -65,8 +59,6 @@ public class GameDataAccess : IGameDataAccess
                 w.Write(city.PassengerDemand);
             }
 
-            // industries (positions + state)
-            // collect unique industries with their grid positions
             var industryMap = new Dictionary<industrial_MapObject, (int x, int y)>();
             for (int i = 0; i < map.Size; i++)
                 for (int j = 0; j < map.Size; j++)
@@ -83,13 +75,11 @@ public class GameDataAccess : IGameDataAccess
                 w.Write(ind.ProductionRate);
                 w.Write(ind.StoredAmount);
 
-                // industry-specific data
                 if (ind is Mine mine) w.Write((byte)mine.Kind);
                 else if (ind is Factory fac) { w.Write((byte)fac.Using); w.Write((byte)fac.Kind); }
                 else if (ind is Farm farm) w.Write((byte)farm.Kind);
             }
 
-            // routes
             w.Write(_model.Routes.Count);
             foreach (var route in _model.Routes)
             {
@@ -102,7 +92,6 @@ public class GameDataAccess : IGameDataAccess
                 }
             }
 
-            // vehicles
             w.Write(_model.Vehicles.Count);
             foreach (var v in _model.Vehicles)
             {
@@ -119,10 +108,8 @@ public class GameDataAccess : IGameDataAccess
                 w.Write(v.LoadedAmount);
                 w.Write(v.CurrentPathIndex);
 
-                // route assignment (by name, empty if none)
                 w.Write(v.AssignedRoute?.Name ?? "");
 
-                // path
                 w.Write(v.PathToFollow.Count);
                 foreach (var p in v.PathToFollow)
                 {
@@ -133,7 +120,6 @@ public class GameDataAccess : IGameDataAccess
         });
     }
 
-    // ========== LOAD ==========
     public async Task LoadGameAsync(string filePath)
     {
         await Task.Run(() =>
@@ -141,33 +127,24 @@ public class GameDataAccess : IGameDataAccess
             using var stream = File.Open(filePath, FileMode.Open);
             using var r = new BinaryReader(stream);
 
-            // header
             string sig = System.Text.Encoding.ASCII.GetString(r.ReadBytes(5));
             if (sig != SIGNATURE) throw new InvalidDataException("Invalid save file.");
             ushort version = r.ReadUInt16();
             if (version > VERSION) throw new InvalidDataException($"Save version {version} not supported.");
 
-            // time
             int day = r.ReadInt32();
             int tickCounter = r.ReadInt32();
             byte speedByte = r.ReadByte();
 
-            // map basics
             int mapSize = r.ReadInt32();
             int money = r.ReadInt32();
 
-            // create fresh map (without generating)
             var map = _model.Map;
-            // we need to set size/money and allocate grid
-            // using reflection or adding a LoadMap method would be cleaner,
-            // but to not change Map.cs structure, we create a new GameModel
             _model = new GameModel(mapSize, money);
             map = _model.Map;
 
-            // allocate empty grid
             var grid = new MapObject[mapSize, mapSize];
 
-            // tiles
             for (int i = 0; i < mapSize; i++)
             {
                 for (int j = 0; j < mapSize; j++)
@@ -176,7 +153,6 @@ public class GameDataAccess : IGameDataAccess
                 }
             }
 
-            // set grid via reflection (MapGrid property is read-only, _map is private)
             var mapField = typeof(Map).GetField("_map", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             mapField?.SetValue(map, grid);
 
@@ -185,7 +161,6 @@ public class GameDataAccess : IGameDataAccess
 
             map.Money = money;
 
-            // cities
             int cityCount = r.ReadInt32();
             map.Cities.Clear();
             for (int i = 0; i < cityCount; i++)
@@ -203,7 +178,6 @@ public class GameDataAccess : IGameDataAccess
                 map.Cities.Add(city);
             }
 
-            // industries
             int industryCount = r.ReadInt32();
             map.Industries.Clear();
             for (int i = 0; i < industryCount; i++)
@@ -228,7 +202,7 @@ public class GameDataAccess : IGameDataAccess
                     Material kind = (Material)r.ReadByte();
                     ind = new Factory(usingMat, kind);
                 }
-                else // Farm
+                else 
                 {
                     Material kind = (Material)r.ReadByte();
                     ind = new Farm(kind);
@@ -238,14 +212,12 @@ public class GameDataAccess : IGameDataAccess
                 ind.StoredAmount = stored;
                 map.Industries.Add(ind);
 
-                // place on grid (2x2)
                 grid[ix, iy] = ind;
                 if (ix + 1 < mapSize) grid[ix + 1, iy] = ind;
                 if (iy + 1 < mapSize) grid[ix, iy + 1] = ind;
                 if (ix + 1 < mapSize && iy + 1 < mapSize) grid[ix + 1, iy + 1] = ind;
             }
 
-            // routes
             int routeCount = r.ReadInt32();
             _model.Routes.Clear();
             var routeLookup = new Dictionary<string, Route>();
@@ -262,7 +234,6 @@ public class GameDataAccess : IGameDataAccess
                 routeLookup[name] = route;
             }
 
-            // vehicles
             int vehicleCount = r.ReadInt32();
             _model.Vehicles.Clear();
             for (int i = 0; i < vehicleCount; i++)
@@ -286,7 +257,6 @@ public class GameDataAccess : IGameDataAccess
                 for (int p = 0; p < pathCount; p++)
                     path.Add(new Point(r.ReadInt32(), r.ReadInt32()));
 
-                // create vehicle
                 Vehicle? vehicle = CreateVehicle(typeName, vSize);
                 if (vehicle == null) continue;
 
@@ -294,18 +264,14 @@ public class GameDataAccess : IGameDataAccess
                 vehicle.Start = new Point(startX, startY);
                 vehicle.Target = new Point(targetX, targetY);
 
-                // load goods
                 if (loadedAmount > 0) vehicle.LoadGoods(loadedAmount);
 
-                // assign route
                 if (!string.IsNullOrEmpty(routeName) && routeLookup.TryGetValue(routeName, out var route))
                     vehicle.AssignRouteToVehicle(route);
 
-                // restore path (via reflection since PathToFollow is read-only list)
                 vehicle.PathToFollow.Clear();
                 vehicle.PathToFollow.AddRange(path);
 
-                // restore movement state via reflection
                 var movingField = typeof(Vehicle).GetField("_isMoving", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                 movingField?.SetValue(vehicle, isMoving);
 
@@ -315,7 +281,6 @@ public class GameDataAccess : IGameDataAccess
                 _model.Vehicles.Add(vehicle);
             }
 
-            // restore time
             var timeDay = typeof(Time).GetField("_day", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             timeDay?.SetValue(_model.Time, day);
 
@@ -327,7 +292,6 @@ public class GameDataAccess : IGameDataAccess
         });
     }
 
-    // ========== Save file listing ==========
     public string[] GetSaveFiles(string directory)
     {
         if (!Directory.Exists(directory)) return Array.Empty<string>();
@@ -336,7 +300,6 @@ public class GameDataAccess : IGameDataAccess
                        .ToArray();
     }
 
-    // ========== Helpers ==========
     private void WriteTile(BinaryWriter w, MapObject tile)
     {
         byte type = (byte)GetTileType(tile);
@@ -456,6 +419,5 @@ public class GameDataAccess : IGameDataAccess
         };
     }
 
-    // public getter for the model (after load it's a new instance)
     public GameModel Model => _model;
 }
