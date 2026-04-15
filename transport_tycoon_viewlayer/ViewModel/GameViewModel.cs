@@ -155,11 +155,18 @@ namespace transport_tycoon_viewlayer.ViewModel
 
         public void StartNewGame()
         {
-            _model.StartNewGame();
             _gameTimer.Start();
+            _model.StartNewGame();
+            _unplacedVehicles.Clear();
+            _vehicleToPlace = null;
+            _vehicleStartStop = System.Drawing.Point.Empty;
+            ValidStartStops = new HashSet<(int x, int y)>();
+            ValidDestinationStops = new HashSet<(int x, int y)>();
+            CurrentTool = ToolMode.None;
             IsPaused = false;
             IsGameOver = false;
-            _unplacedVehicles.Clear();
+            StatusText = "";
+            _gameTimer.Start();
             UpdateUI();
             RequestMapRedraw?.Invoke();
         }
@@ -397,6 +404,13 @@ namespace transport_tycoon_viewlayer.ViewModel
                 RequestPauseMenu?.Invoke();
             }
             UpdateUI();
+        }
+
+        public void StopGame()
+        {
+            _model.Time.Stop();
+            _gameTimer.Stop();
+            IsPaused = true;
         }
 
         private void Resume()

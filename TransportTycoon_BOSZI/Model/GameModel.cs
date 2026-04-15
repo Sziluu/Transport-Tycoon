@@ -11,6 +11,9 @@ public class GameModel
     private List<Vehicle> _vehicles;
     private List<Route> _routes;
 
+    private readonly int _mapSize;
+    private readonly int _startMoney;
+
     public Map Map => _map;
     public Time Time => _time;
     public List<Vehicle> Vehicles => _vehicles;
@@ -24,6 +27,8 @@ public class GameModel
 
     public GameModel(int mapSize, int startMoney)
     {
+        _mapSize = mapSize;
+        _startMoney = startMoney;
         _map = new Map(mapSize, startMoney);
         _time = new Time();
         _vehicles = new List<Vehicle>();
@@ -32,9 +37,14 @@ public class GameModel
 
     public void StartNewGame()
     {
+        _map = new Map(_mapSize, _startMoney);
         _map.CreateMap();
+        _time = new Time();
         _time.Normal();
+        _vehicles.Clear();
+        _routes.Clear();
         MapChanged?.Invoke(this, EventArgs.Empty);
+        MoneyChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public Vehicle? BuyVehicle(string vehicleType, size size)
@@ -138,16 +148,23 @@ public class GameModel
             if (vehicle.AssignedRoute == null) continue;
             if (vehicle.IsMoving)
             {
-                bool moved = vehicle.StepAlongPath();
-                if (moved) anyMoved = true;
+                if (vehicle.PathToFollow.Count == 0)
+                {
+                    vehicle.OptimalPathFind(vehicle.Start, vehicle.Target, _map.GetMap);
+                }
+
+                if (vehicle.PathToFollow.Count > 0)
+                {
+                    bool moved = vehicle.StepAlongPath();
+                    if (moved) anyMoved = true;
+                }
+
                 if (vehicle.HasArrivedAtStop())
                     HandleStopArrival(vehicle);
             }
             else if (vehicle.AssignedRoute.IsValid())
             {
                 vehicle.MoveToNextStop();
-                if (vehicle.PathToFollow.Count == 0)
-                    vehicle.OptimalPathFind(vehicle.Start, vehicle.Target, _map.GetMap);
             }
         }
         if (anyMoved)

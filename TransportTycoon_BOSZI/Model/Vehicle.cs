@@ -147,6 +147,7 @@ public abstract class Vehicle
 
         _start = _currentPosition;
         _target = nextStop;
+        _pathToFollow.Clear();
         _isMoving = true;
         _currentPathIndex = 0;
     }
@@ -244,6 +245,7 @@ public abstract class Vehicle
 
         if (d[target.X, target.Y] == int.MaxValue)
         {
+            _isMoving = false;
             return;
         }
 
@@ -259,7 +261,7 @@ public abstract class Vehicle
 
     private bool IsWalkable(MapObject tile)
     {
-        return tile is Road or Stop or House or Bridge or Garage;
+        return tile is Road or Stop or House or Bridge or Garage or industrial_MapObject;
     }
 
     private int GetMovementCost(MapObject tile)

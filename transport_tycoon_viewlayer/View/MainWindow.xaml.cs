@@ -151,6 +151,7 @@ namespace transport_tycoon_viewlayer.View
         private void QuitGame_Click(object sender, RoutedEventArgs e) => Application.Current.Shutdown();
         private void QuitToMenu_Click(object sender, RoutedEventArgs e)
         {
+            _viewModel.StopGame();
             PauseOverlay.Visibility = Visibility.Collapsed;
             GamePanel.Visibility = Visibility.Collapsed;
             MainMenuPanel.Visibility = Visibility.Visible;
