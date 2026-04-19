@@ -147,10 +147,11 @@ public class Map
             if (!IsAreaLand(ix, iy, 2, 2)) continue;
             if (TooClose(ix, iy, 8)) continue;
 
-            industrial_MapObject industry = (_rand.Next(3)) switch
+            industrial_MapObject industry = (_rand.Next(4)) switch
             {
                 0 => new Mine(),
-                1 => new Factory(),
+                1 => new Factory(),                                    
+                2 => new Factory(Material.wheat, Material.bread),
                 _ => new Farm()
             };
 
