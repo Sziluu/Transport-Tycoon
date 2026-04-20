@@ -143,6 +143,16 @@ public class GameModel
     private void UpdateVehicles()
     {
         bool anyMoved = false;
+
+        foreach (var vehicle in _vehicles)
+        {
+            if (vehicle.AssignedRoute == null) continue;
+            if (vehicle.IsMoving)
+            {
+                vehicle.MatchSpeed(_vehicles);
+            }
+        }
+
         foreach (var vehicle in _vehicles)
         {
             if (vehicle.AssignedRoute == null) continue;
@@ -155,8 +165,12 @@ public class GameModel
 
                 if (vehicle.PathToFollow.Count > 0)
                 {
-                    bool moved = vehicle.StepAlongPath();
-                    if (moved) anyMoved = true;
+                    for (int step = 0; step < vehicle.EffectiveStepsPerTick; step++)
+                    {
+                        bool moved = vehicle.StepAlongPath();
+                        if (moved) anyMoved = true;
+                        else break;
+                    }
                 }
 
                 if (vehicle.HasArrivedAtStop())
