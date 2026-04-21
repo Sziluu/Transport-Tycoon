@@ -3,16 +3,16 @@ using TransportTycoon_BOSZI.Model.MapObjects;
 
 namespace TransportTycoon_BOSZI.Model;
 
-public record VehicleSpec(int Speed, int Capacity, int Cost);
+public record VehicleSpec(int Capacity, int Cost);
 
 public static class VehicleCatalog
 {
 
-    static readonly Dictionary<size, int> CapacityValues = new()
+    static readonly Dictionary<Size, int> CapacityValues = new()
     {
-        { size.Small, 50 },
-        { size.Medium, 100 },
-        { size.Big, 200 }
+        { Size.small, 50 },
+        { Size.medium, 100 },
+        { Size.big, 200 }
     };
 
     static readonly Dictionary<Material, int> CostModifier = new()
@@ -27,30 +27,29 @@ public static class VehicleCatalog
         { Material.nothing, 0 }
     };
 
-    public static VehicleSpec GetSpec(speed speed, size size, Material material)
+    public static VehicleSpec GetSpec(Speed speed, Size size, Material material)
     {
         int vehicleSpeed = (int)speed; 
         int capacity = CapacityValues[size];
         int baseCost = vehicleSpeed * 2 + capacity * 5;
         int finalCost = baseCost + CostModifier[material];
 
-        return new VehicleSpec(vehicleSpeed, capacity, finalCost);
+        return new VehicleSpec( capacity, finalCost);
     }
 }
 
 public abstract class Vehicle
 {
-    private speed _speed;
+    private Speed _speed;
     private int _capacity;
     private int _cost;
-    private size _size;
+    private Size _size;
     private Material _material;
     private Point _start;
     private Point _target;
     private List<Point> _pathToFollow;
-
-    //tvonal kezels
-    private Route _assignedRoute;
+    
+    private Route? _assignedRoute;
     private int _currentRouteStopIndex;
     private int _currentPathIndex;
     private bool _isMoving;
@@ -58,21 +57,18 @@ public abstract class Vehicle
     private int _maintenanceCost;
     private Point _currentPosition;
 
-    public speed VehicleSpeed => _speed;
+    public Speed VehicleSpeed => _speed;
     public int Capacity => _capacity;
     public int Cost => _cost;
     public Material CarriedMaterial => _material;
-    public size VehicleSize => _size;
+    public Size VehicleSize => _size;
 
     public Point Start
     {
         get { return _start; }
         set
         {
-            if (value != _start)
-            {
-                _start = value;
-            }
+            _start = value;
         }
     }
 
@@ -81,10 +77,7 @@ public abstract class Vehicle
         get { return _target; }
         set
         {
-            if (value != _target)
-            {
-                _target = value;
-            }
+            _target = value;
         }
     }
 
@@ -96,7 +89,7 @@ public abstract class Vehicle
 
     public Route AssignedRoute
     {
-        get => _assignedRoute;
+        get => _assignedRoute!;
         set => _assignedRoute = value;
     }
 
@@ -110,10 +103,10 @@ public abstract class Vehicle
 
     public int EffectiveStepsPerTick => _effectiveStepsPerTick;
 
-    public Vehicle(speed Vspeed, size size, Material material)
+    public Vehicle(Speed vspeed, Size size, Material material)
     {
-        VehicleSpec spec = VehicleCatalog.GetSpec(Vspeed, size, material);
-        _speed = Vspeed;
+        VehicleSpec spec = VehicleCatalog.GetSpec(vspeed, size, material);
+        _speed = vspeed;
         _capacity = spec.Capacity;
         _cost = spec.Cost;
 
@@ -145,7 +138,7 @@ public abstract class Vehicle
     
     public void MoveToNextStop()
     {
-        if (_assignedRoute == null || _assignedRoute.Stops.Count < 2) return;
+        if (_assignedRoute == null! || _assignedRoute.Stops.Count < 2) return;
 
         _currentRouteStopIndex = (_currentRouteStopIndex + 1) % _assignedRoute.Stops.Count;
         Point nextStop = _assignedRoute.Stops[_currentRouteStopIndex];
@@ -176,7 +169,7 @@ public abstract class Vehicle
 
     public bool HasArrivedAtStop()
     {
-        return !_isMoving && _assignedRoute != null &&
+        return !_isMoving && _assignedRoute != null! &&
                _currentPosition == _assignedRoute.Stops[_currentRouteStopIndex];
     }
 
@@ -213,19 +206,19 @@ public abstract class Vehicle
         }
 
         d[start.X, start.Y] = 0;
-        PriorityQueue<Point, int> Q = new();
+        PriorityQueue<Point, int> q = new();
         for (int i = 0; i < width; i++)
         {
             for (int j = 0; j < height; j++)
             {
-                Q.Enqueue(new Point(i, j), d[i, j]);
+                q.Enqueue(new Point(i, j), d[i, j]);
             }
         }
 
         Point u = start;
-        while (d[u.X, u.Y] < int.MaxValue && Q.Count > 0)
+        while (d[u.X, u.Y] < int.MaxValue && q.Count > 0)
         {
-            u = Q.Dequeue();
+            u = q.Dequeue();
             if (u == target)
             {
                 break;
@@ -241,7 +234,7 @@ public abstract class Vehicle
                 {
                     d[v.X, v.Y] = d[u.X, u.Y] + weight;
                     p[v.X, v.Y] = u;
-                    Q.Enqueue(v, d[v.X, v.Y]);
+                    q.Enqueue(v, d[v.X, v.Y]);
                 }
             }
         }
@@ -254,11 +247,11 @@ public abstract class Vehicle
             return;
         }
 
-        Point current = target;
+        Point? current = target;
         while (current != start)
         {
-            _pathToFollow.Add(current);
-            current = p[current.X, current.Y].Value;
+            _pathToFollow.Add(current.Value);
+            current = p[current.Value.X, current.Value.Y]!.Value;
         }
         _pathToFollow.Add(start);
         _pathToFollow.Reverse();
@@ -308,9 +301,9 @@ public abstract class Vehicle
     {
         return _speed switch
         {
-            speed.slow => 1,
-            speed.mid => 2,
-            speed.fast => 3,
+            Speed.slow => 1,
+            Speed.mid => 2,
+            Speed.fast => 3,
             _ => 1
         };
     }

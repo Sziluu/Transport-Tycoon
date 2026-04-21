@@ -11,14 +11,14 @@ namespace TransportTycoon_BOSZI.Model
         private int _size;
         private List<MapObject> _fields;
         private string _name;
-        private coord _topLeft; //bal felső sarok a térképen
+        private Coord _topLeft; //bal felső sarok a térképen
         private int _population;
         private int _passengerDemand;
 
         public int Size => _size;
         public List<MapObject> Fields => _fields;
         public string Name => _name;
-        public coord TopLeft => _topLeft;
+        public Coord TopLeft => _topLeft;
 
         public int Population
         {
@@ -37,12 +37,12 @@ namespace TransportTycoon_BOSZI.Model
             _size = 3;
             _fields = new List<MapObject>();
             _name = "Város";
-            _topLeft = new coord(0, 0);
+            _topLeft = new Coord(0, 0);
             _population = 100;
             _passengerDemand = 5;
         }
 
-        public City(string name, coord topLeft, int size)
+        public City(string name, Coord topLeft, int size)
         {
             _name = name;
             _topLeft = topLeft;

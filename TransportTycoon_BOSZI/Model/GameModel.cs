@@ -47,18 +47,18 @@ public class GameModel
         MoneyChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public Vehicle? BuyVehicle(string vehicleType, size size)
+    public Vehicle? BuyVehicle(string vehicleType, Size size)
     {
         Vehicle? vehicle = vehicleType switch
         {
-            "Bus" => new Bus(speed.mid, size),
+            "Bus" => new Bus(Speed.mid, size),
             "IronTransporter" => new IronTransporter(size),
             "IronOreTransporter" => new IronOreTransporter(size),
             "CoalTransporter" => new CoalTransporter(size),
             "WoodTransporter" => new WoodTransporter(size),
             "PaperTransporter" => new PaperTransporter(size),
             "WheatTransporter" => new WheatTransporter(size),
-            "BreadTransporter" => new Vehicles.BreadTransporter(size),
+            "BreadTransporter" => new BreadTransporter(size),
             _ => null
         };
 
@@ -73,7 +73,7 @@ public class GameModel
 
     public bool PlaceVehicleAtStop(Vehicle vehicle, int stopX, int stopY)
     {
-        MapObject? tile = _map.GetTile(stopX, stopY);
+        MapObject tile = _map.GetTile(stopX, stopY);
         if (tile is not Stop) return false;
 
         vehicle.PlaceAtStop(new Point(stopX, stopY));
@@ -84,7 +84,7 @@ public class GameModel
     {
         foreach (var pos in stopPositions)
         {
-            MapObject? tile = _map.GetTile(pos.X, pos.Y);
+            MapObject tile = _map.GetTile(pos.X, pos.Y);
             if (tile is not Stop) return null;
         }
 
@@ -128,7 +128,7 @@ public class GameModel
 
     public void Tick()
     {
-        if (_time.CurrentSpeed == GameSpeed.Stopped) return;
+        if (_time.CurrentSpeed == GameSpeed.stopped) return;
 
         int multiplier = _time.GetSpeedMultiplier();
         for (int i = 0; i < multiplier; i++)
@@ -146,7 +146,6 @@ public class GameModel
 
         foreach (var vehicle in _vehicles)
         {
-            if (vehicle.AssignedRoute == null) continue;
             if (vehicle.IsMoving)
             {
                 vehicle.MatchSpeed(_vehicles);
@@ -155,7 +154,6 @@ public class GameModel
 
         foreach (var vehicle in _vehicles)
         {
-            if (vehicle.AssignedRoute == null) continue;
             if (vehicle.IsMoving)
             {
                 if (vehicle.PathToFollow.Count == 0)
@@ -188,7 +186,7 @@ public class GameModel
     private void HandleStopArrival(Vehicle vehicle)
     {
         Point pos = vehicle.CurrentPosition;
-        MapObject? tile = _map.GetTile(pos.X, pos.Y);
+        MapObject tile = _map.GetTile(pos.X, pos.Y);
         if (tile is not Stop) return;
 
         if (vehicle.LoadedAmount > 0)
@@ -213,7 +211,7 @@ public class GameModel
             int ny = stopPos.Y + dy[k];
             if (nx < 0 || nx >= _map.Size || ny < 0 || ny >= _map.Size)
                 continue;
-            MapObject? neighbor = _map.GetMap[nx, ny];
+            MapObject neighbor = _map.GetMap[nx, ny];
             if (neighbor is industrial_MapObject industry)
             {
                 Material producedMat = GetProducedMaterial(industry);
@@ -279,18 +277,18 @@ public class GameModel
         };
     }
 
-    public int GetVehiclePrice(string type, size size)
+    public int GetVehiclePrice(string type, Size size)
     {
         Vehicle? temp = type switch
         {
-            "Bus" => new Bus(speed.mid, size),
+            "Bus" => new Bus(Speed.mid, size),
             "IronTransporter" => new IronTransporter(size),
             "IronOreTransporter" => new IronOreTransporter(size),
             "CoalTransporter" => new CoalTransporter(size),
             "WoodTransporter" => new WoodTransporter(size),
             "PaperTransporter" => new PaperTransporter(size),
             "WheatTransporter" => new WheatTransporter(size),
-            "BreadTransporter" => new Vehicles.BreadTransporter(size),
+            "BreadTransporter" => new BreadTransporter(size),
             _ => null
         };
         return temp?.Cost ?? 0;

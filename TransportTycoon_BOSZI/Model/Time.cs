@@ -2,10 +2,10 @@ namespace TransportTycoon_BOSZI.Model;
 
 public enum GameSpeed
 {
-    Stopped,
-    Normal,
-    Fast,
-    VeryFast
+    stopped,
+    normal,
+    fast,
+    veryFast
 }
 
 public class Time
@@ -20,46 +20,46 @@ public class Time
 
     public Time()
     {
-        _currentSpeed = GameSpeed.Stopped;
+        _currentSpeed = GameSpeed.stopped;
         _tickCounter = 0;
         _day = 1;
     }
 
     public void Stop()
     {
-        _currentSpeed = GameSpeed.Stopped;
+        _currentSpeed = GameSpeed.stopped;
     }
 
     public void Normal()
     {
-        _currentSpeed = GameSpeed.Normal;
+        _currentSpeed = GameSpeed.normal;
     }
 
     public void Fast()
     {
-        _currentSpeed = GameSpeed.Fast;
+        _currentSpeed = GameSpeed.fast;
     }
 
     public void VeryFast()
     {
-        _currentSpeed = GameSpeed.VeryFast;
+        _currentSpeed = GameSpeed.veryFast;
     }
 
     public int GetSpeedMultiplier()
     {
         return _currentSpeed switch
         {
-            GameSpeed.Stopped => 0,
-            GameSpeed.Normal => 1,
-            GameSpeed.Fast => 2,
-            GameSpeed.VeryFast => 4,
+            GameSpeed.stopped => 0,
+            GameSpeed.normal => 1,
+            GameSpeed.fast => 2,
+            GameSpeed.veryFast => 4,
             _ => 1
         };
     }
 
     public void Tick()
     {
-        if (_currentSpeed == GameSpeed.Stopped) return;
+        if (_currentSpeed == GameSpeed.stopped) return;
 
         _tickCounter++;
         if (_tickCounter >= 100) //100 tick = 1 nap

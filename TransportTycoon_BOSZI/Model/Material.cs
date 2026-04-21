@@ -1,4 +1,4 @@
-namespace TransportTycoon_BOSZI;
+namespace TransportTycoon_BOSZI.Model;
 
 public enum Material
 {

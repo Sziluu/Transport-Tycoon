@@ -1,6 +1,6 @@
-namespace TransportTycoon_BOSZI;
+namespace TransportTycoon_BOSZI.Model;
 
-public enum speed
+public enum Speed
 {
     slow,
     mid,

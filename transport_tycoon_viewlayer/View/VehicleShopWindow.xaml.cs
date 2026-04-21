@@ -1,24 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 using transport_tycoon_viewlayer.ViewModel;
-using TransportTycoon_BOSZI;
 namespace transport_tycoon_viewlayer.View
 {
     /// <summary>
     /// Interaction logic for VehicleShopWindow.xaml
     /// </summary>
-    public partial class VehicleShopWindow : Window
+    public partial class VehicleShopWindow
     {
         private GameViewModel _viewModel;
         private string? _selectedType;
@@ -30,11 +19,11 @@ namespace transport_tycoon_viewlayer.View
             UpdateBalance();
         }
 
-        private size GetSelectedSize()
+        private TransportTycoon_BOSZI.Model.Size GetSelectedSize()
         {
-            if (SizeSmall.IsChecked == true) return size.Small;
-            if (SizeBig.IsChecked == true) return size.Big;
-            return size.Medium;
+            if (SizeSmall.IsChecked == true) return TransportTycoon_BOSZI.Model.Size.small;
+            if (SizeBig.IsChecked == true) return TransportTycoon_BOSZI.Model.Size.big;
+            return TransportTycoon_BOSZI.Model.Size.medium;
         }
 
         private void VehicleList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -62,9 +51,9 @@ namespace transport_tycoon_viewlayer.View
             string speedText = _selectedType == "Bus" ? "150 (mid)" : "200 (fast)";
             int capacity = size switch
             {
-                size.Small => 50,
-                size.Medium => 100,
-                size.Big => 200,
+                TransportTycoon_BOSZI.Model.Size.small => 50,
+                TransportTycoon_BOSZI.Model.Size.medium => 100,
+                TransportTycoon_BOSZI.Model.Size.big => 200,
                 _ => 100
             };
 

@@ -1,6 +1,4 @@
-using TransportTycoon_BOSZI.Model;
-
-namespace TransportTycoon_BOSZI;
+namespace TransportTycoon_BOSZI.Model.MapObjects;
 
 public abstract class industrial_MapObject : MapObject
 {

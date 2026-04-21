@@ -5,7 +5,7 @@ namespace TransportTycoon_BOSZI;
 
 class Program
 {
-    static void Main(string[] args)
+    static void Main()
     {
         Map myMap = new Map(50, 10);
         MapObject[,] realmap = myMap.CreateMap();

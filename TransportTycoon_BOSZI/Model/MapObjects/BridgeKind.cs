@@ -1,4 +1,4 @@
-namespace TransportTycoon_BOSZI.Model;
+namespace TransportTycoon_BOSZI.Model.MapObjects;
 
 public enum BridgeKind
 {
