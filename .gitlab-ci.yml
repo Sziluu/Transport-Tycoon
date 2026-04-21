@@ -32,6 +32,7 @@ build-job:
 
 unit-test-job:
   stage: test
+  image: mcr.microsoft.com/dotnet/sdk:9.0
   script:
     - echo "Running unit tests..."
     - dotnet test TransportTycoon_BOSZI_TESTS/TransportTycoon_BOSZI_TESTS.csproj --configuration Release --verbosity normal
@@ -39,6 +40,7 @@ unit-test-job:
 
 lint-test-job:
   stage: test
+  image: mcr.microsoft.com/dotnet/sdk:9.0
   script:
     - echo "Linting code..."
     - dotnet format TransportTycoon_BOSZI/TransportTycoon_BOSZI.csproj --verify-no-changes
@@ -46,6 +48,7 @@ lint-test-job:
 
 deploy-job:
   stage: deploy
+  image: mcr.microsoft.com/dotnet/sdk:9.0
   environment: production
   script:
     - echo "Deploying application..."
