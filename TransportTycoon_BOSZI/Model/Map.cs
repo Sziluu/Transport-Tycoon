@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using TransportTycoon_BOSZI.Model;
 using TransportTycoon_BOSZI.Model.MapObjects;
 namespace TransportTycoon_BOSZI;
@@ -122,7 +123,6 @@ public class Map
             int cy = _rand.Next(5, _size - 5);
             if (!IsAreaLand(cx - 1, cy - 1, 5, 5)) continue;
             if (TooClose(cx, cy, 15)) continue;
-            
             _map[cx, cy] = new House { IsPartOfCity = true };
             _map[cx + 1, cy] = new Road { IsPartOfCity = true };
             _map[cx + 2, cy] = new House { IsPartOfCity = true };
@@ -137,7 +137,7 @@ public class Map
             return;
         }
     }
-    
+
     private void TryPlaceIndustry()
     {
         for (int attempt = 0; attempt < 200; attempt++)
@@ -150,7 +150,7 @@ public class Map
             industrial_MapObject industry = (_rand.Next(4)) switch
             {
                 0 => new Mine(),
-                1 => new Factory(),                                    
+                1 => new Factory(),
                 2 => new Factory(Material.wheat, Material.bread),
                 _ => new Farm()
             };
