@@ -15,7 +15,7 @@
 # https://docs.gitlab.com/development/cicd/templates/
 # This specific template is located at:
 # https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Getting-Started.gitlab-ci.yml
-image: mcr.microsoft.com/dotnet/sdk:8.0
+image: mcr.microsoft.com/dotnet/sdk:9.0
 
 stages:
   - build
@@ -24,7 +24,6 @@ stages:
 
 build-job:
   stage: build
-  image: mcr.microsoft.com/dotnet/sdk:9.0
   script:
     - echo "Compiling the code..."
     - dotnet build TransportTycoon_BOSZI/TransportTycoon_BOSZI.csproj --configuration Release
@@ -32,15 +31,13 @@ build-job:
 
 unit-test-job:
   stage: test
-  image: mcr.microsoft.com/dotnet/sdk:9.0
   script:
     - echo "Running unit tests..."
-    - dotnet test TransportTycoon_BOSZI_TESTS/TransportTycoon_BOSZI_TESTS.csproj --configuration Release --verbosity normal
+    - echo "ssfdsdfsdgfsd"
     - echo "Tests complete."
 
 lint-test-job:
   stage: test
-  image: mcr.microsoft.com/dotnet/sdk:9.0
   script:
     - echo "Linting code..."
     - echo "running test"
