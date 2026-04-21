@@ -1,7 +1,6 @@
 namespace TransportTycoon_BOSZI_TESTS;
 using System.Drawing;
 using Xunit;
-using TransportTycoon_BOSZI;
 using TransportTycoon_BOSZI.Model;
 using TransportTycoon_BOSZI.Model.MapObjects;
 using TransportTycoon_BOSZI.Model.Vehicles;
