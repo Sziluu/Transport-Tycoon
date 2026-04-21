@@ -31,10 +31,8 @@ build-job:
 
 unit-test-job:
   stage: test
-  image: mcr.microsoft.com/dotnet/sdk:8.0
   script:
     - echo "Running unit tests..."
-    - dotnet new globaljson --sdk-version 8.0.420 --force
     - dotnet test TransportTycoon_BOSZI_TESTS/TransportTycoon_BOSZI_TESTS.csproj --configuration Release --verbosity normal
     - echo "Tests complete."
 
