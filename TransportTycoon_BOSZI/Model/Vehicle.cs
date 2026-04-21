@@ -106,6 +106,10 @@ public abstract class Vehicle
     public List<Point> PathToFollow => _pathToFollow;
     public int CurrentPathIndex => _currentPathIndex;
 
+    private int _effectiveStepsPerTick;
+
+    public int EffectiveStepsPerTick => _effectiveStepsPerTick;
+
     public Vehicle(speed Vspeed, size size, Material material)
     {
         VehicleSpec spec = VehicleCatalog.GetSpec(Vspeed, size, material);
@@ -122,6 +126,7 @@ public abstract class Vehicle
         _currentRouteStopIndex = 0;
         _currentPathIndex = 0;
         _maintenanceCost = spec.Cost / 10;
+        _effectiveStepsPerTick = GetBaseStepsPerTick();
     }
 
     public void PlaceAtStop(Point stopPosition)
@@ -299,8 +304,48 @@ public abstract class Vehicle
         return neighbours;
     }
 
-    public void MatchSpeed(Point aktual)
+    public int GetBaseStepsPerTick()
     {
+        return _speed switch
+        {
+            speed.slow => 1,
+            speed.mid => 2,
+            speed.fast => 3,
+            _ => 1
+        };
+    }
+
+    public void MatchSpeed(List<Vehicle> allVehicles)
+    {
+        _effectiveStepsPerTick = GetBaseStepsPerTick();
+
+        if (!_isMoving || _pathToFollow.Count == 0) return;
+
+
+        int lookAhead = GetBaseStepsPerTick();
+        for (int i = 1; i <= lookAhead; i++)
+        {
+            int checkIndex = _currentPathIndex + i;
+            if (checkIndex >= _pathToFollow.Count) break;
+
+            Point checkPos = _pathToFollow[checkIndex];
+
+            foreach (var other in allVehicles)
+            {
+                if (other == this) continue;
+                if (!other.IsMoving) continue;
+
+                if (other.CurrentPosition == checkPos)
+                {
+                    int otherSpeed = other.EffectiveStepsPerTick;
+                    if(otherSpeed < _effectiveStepsPerTick)
+                    {
+                        _effectiveStepsPerTick = otherSpeed;
+                    }
+                    return;
+                }
+            }
+        }
     }
 }
 
