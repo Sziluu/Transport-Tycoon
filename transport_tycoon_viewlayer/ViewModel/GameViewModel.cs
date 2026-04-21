@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Drawing;
 using System.Windows.Input;
 using System.Windows.Threading;
-using System.Xml.Linq;
 using TransportTycoon_BOSZI;
 using TransportTycoon_BOSZI.Model;
 using TransportTycoon_BOSZI.Model.MapObjects;
@@ -15,11 +9,11 @@ namespace transport_tycoon_viewlayer.ViewModel
 {
     public enum ToolMode //kattintások éppen mit csinálnak
     {
-        None,
-        BuildRoad,
-        PlaceStop,
-        PlaceVehicle,       // Phase 1: pick the start stop for the vehicle
-        SelectDestination   // Phase 2: pick the destination stop to create the route
+        none,
+        buildRoad,
+        placeStop,
+        placeVehicle,       // Phase 1: pick the start stop for the vehicle
+        selectDestination   // Phase 2: pick the destination stop to create the route
     }
 
     public class GameViewModel : ViewModelBase
@@ -35,17 +29,15 @@ namespace transport_tycoon_viewlayer.ViewModel
         private bool _isPaused;
         private bool _isGameOver;
 
-
-        private List<Vehicle> _unplacedVehicles;
+        
+        private readonly List<Vehicle> _unplacedVehicles;
         private Vehicle? _vehicleToPlace;
-        private System.Drawing.Point _vehicleStartStop; // position of the placed start stop (used in phase 2)
-
-        // Valid stops for the current placement phase (exposed for the View to highlight)
+        private Point _vehicleStartStop;
         public HashSet<(int x, int y)> ValidStartStops { get; private set; } = new();
         public HashSet<(int x, int y)> ValidDestinationStops { get; private set; } = new();
 
 
-        private Material _selectedStopMaterial;
+        private readonly Material _selectedStopMaterial;
 
         public ToolMode CurrentTool
         {
@@ -91,10 +83,10 @@ namespace transport_tycoon_viewlayer.ViewModel
 
         public string ToolInfo => _currentTool switch
         {
-            ToolMode.BuildRoad => "Click a tile to build a road",
-            ToolMode.PlaceStop => "Click next to a road/city to place a stop",
-            ToolMode.PlaceVehicle => "Click a GREEN stop (valid producer) to place the vehicle",
-            ToolMode.SelectDestination => "Click a BLUE stop (valid consumer) to set the destination",
+            ToolMode.buildRoad => "Click a tile to build a road",
+            ToolMode.placeStop => "Click next to a road/city to place a stop",
+            ToolMode.placeVehicle => "Click a GREEN stop (valid producer) to place the vehicle",
+            ToolMode.selectDestination => "Click a BLUE stop (valid consumer) to set the destination",
             _ => ""
         };
 
@@ -105,7 +97,6 @@ namespace transport_tycoon_viewlayer.ViewModel
         // commands
         public ICommand BuildRoadCommand { get; }
         public ICommand PlaceStopCommand { get; }
-        public ICommand OpenVehicleShopCommand { get; }
         public ICommand PauseCommand { get; }
         public ICommand ResumeCommand { get; }
         public ICommand SpeedNormalCommand { get; }
@@ -119,8 +110,9 @@ namespace transport_tycoon_viewlayer.ViewModel
         public event Action? RequestOpenVehicleShop;
         public event Action? RequestPauseMenu;
 
-        public GameViewModel()
+        public GameViewModel(Material selectedStopMaterial)
         {
+            _selectedStopMaterial = selectedStopMaterial;
             _model = new GameModel(100, 20000);
             _moneyText = "";
             _dayText = "";
@@ -128,24 +120,25 @@ namespace transport_tycoon_viewlayer.ViewModel
             _statusText = "";
             _unplacedVehicles = new List<Vehicle>();
 
-            BuildRoadCommand = new RelayCommand(_ => SetTool(ToolMode.BuildRoad));
-            PlaceStopCommand = new RelayCommand(_ => SetTool(ToolMode.PlaceStop));
-            OpenVehicleShopCommand = new RelayCommand(_ => RequestOpenVehicleShop?.Invoke());
+            BuildRoadCommand = new RelayCommand(_ => SetTool(ToolMode.buildRoad));
+            PlaceStopCommand = new RelayCommand(_ => SetTool(ToolMode.placeStop));
+            var relayCommand = new RelayCommand(_ => RequestOpenVehicleShop?.Invoke());
+            if (relayCommand == null) throw new ArgumentNullException(nameof(relayCommand));
             PauseCommand = new RelayCommand(_ => TogglePause());
             ResumeCommand = new RelayCommand(_ => Resume());
-            SpeedNormalCommand = new RelayCommand(_ => SetSpeed(GameSpeed.Normal));
-            SpeedFastCommand = new RelayCommand(_ => SetSpeed(GameSpeed.Fast));
-            SpeedVeryFastCommand = new RelayCommand(_ => SetSpeed(GameSpeed.VeryFast));
-            CancelToolCommand = new RelayCommand(_ => SetTool(ToolMode.None));
+            SpeedNormalCommand = new RelayCommand(_ => SetSpeed(GameSpeed.normal));
+            SpeedFastCommand = new RelayCommand(_ => SetSpeed(GameSpeed.fast));
+            SpeedVeryFastCommand = new RelayCommand(_ => SetSpeed(GameSpeed.veryFast));
+            CancelToolCommand = new RelayCommand(_ => SetTool(ToolMode.none));
 
             _gameTimer = new DispatcherTimer();
             _gameTimer.Interval = TimeSpan.FromMilliseconds(50);
             _gameTimer.Tick += GameTimer_Tick;
 
-            _model.MoneyChanged += (s, e) => UpdateUI();
-            _model.MapChanged += (s, e) => RequestMapRedraw?.Invoke();
-            _model.VehicleMoved += (s, e) => RequestVehicleRedraw?.Invoke();
-            _model.GameOver += (s, e) =>
+            _model.MoneyChanged += (_, _) => UpdateUi();
+            _model.MapChanged += (_, _) => RequestMapRedraw?.Invoke();
+            _model.VehicleMoved += (_, _) => RequestVehicleRedraw?.Invoke();
+            _model.GameOver += (_, _) =>
             {
                 IsGameOver = true;
                 _gameTimer.Stop();
@@ -159,15 +152,15 @@ namespace transport_tycoon_viewlayer.ViewModel
             _model.StartNewGame();
             _unplacedVehicles.Clear();
             _vehicleToPlace = null;
-            _vehicleStartStop = System.Drawing.Point.Empty;
+            _vehicleStartStop = Point.Empty;
             ValidStartStops = new HashSet<(int x, int y)>();
             ValidDestinationStops = new HashSet<(int x, int y)>();
-            CurrentTool = ToolMode.None;
+            CurrentTool = ToolMode.none;
             IsPaused = false;
             IsGameOver = false;
             StatusText = "";
             _gameTimer.Start();
-            UpdateUI();
+            UpdateUi();
             RequestMapRedraw?.Invoke();
         }
 
@@ -177,7 +170,7 @@ namespace transport_tycoon_viewlayer.ViewModel
 
             switch (_currentTool)
             {
-                case ToolMode.BuildRoad:
+                case ToolMode.buildRoad:
                     bool roadBuilt = _model.BuildRoad(gridX, gridY);
                     if (roadBuilt)
                         StatusText = $"Road built at ({gridX}, {gridY}) [-50$]";
@@ -185,7 +178,7 @@ namespace transport_tycoon_viewlayer.ViewModel
                         StatusText = "Can't build road here!";
                     break;
 
-                case ToolMode.PlaceStop:
+                case ToolMode.placeStop:
                     bool stopPlaced = _model.PlaceStop(gridX, gridY, _selectedStopMaterial);
                     if (stopPlaced)
                     {
@@ -195,7 +188,7 @@ namespace transport_tycoon_viewlayer.ViewModel
                         StatusText = "Can't place stop here! Must be next to a road or city.";
                     break;
 
-                case ToolMode.PlaceVehicle:
+                case ToolMode.placeVehicle:
                     if (_vehicleToPlace != null)
                     {
                         if (!ValidStartStops.Contains((gridX, gridY)))
@@ -210,7 +203,7 @@ namespace transport_tycoon_viewlayer.ViewModel
                         bool placed = _model.PlaceVehicleAtStop(_vehicleToPlace, gridX, gridY);
                         if (placed)
                         {
-                            _vehicleStartStop = new System.Drawing.Point(gridX, gridY);
+                            _vehicleStartStop = new Point(gridX, gridY);
                             _unplacedVehicles.Remove(_vehicleToPlace);
 
                             // Compute valid destination stops and switch to phase 2
@@ -221,12 +214,12 @@ namespace transport_tycoon_viewlayer.ViewModel
                             {
                                 StatusText = "Vehicle placed, but no valid destination stops exist yet. Build a stop near a consumer first.";
                                 _vehicleToPlace = null;
-                                SetTool(ToolMode.None);
+                                SetTool(ToolMode.none);
                             }
                             else
                             {
                                 StatusText = $"Vehicle placed at ({gridX}, {gridY})! Now click a BLUE stop as the destination.";
-                                SetTool(ToolMode.SelectDestination);
+                                SetTool(ToolMode.selectDestination);
                             }
 
                             RequestVehicleRedraw?.Invoke();
@@ -238,7 +231,7 @@ namespace transport_tycoon_viewlayer.ViewModel
                     }
                     break;
 
-                case ToolMode.SelectDestination:
+                case ToolMode.selectDestination:
                     if (_vehicleToPlace != null)
                     {
                         if (!ValidDestinationStops.Contains((gridX, gridY)))
@@ -251,8 +244,8 @@ namespace transport_tycoon_viewlayer.ViewModel
                         }
 
                         // Create a two-stop route and assign it to the vehicle
-                        var destPoint = new System.Drawing.Point(gridX, gridY);
-                        var stopList = new List<System.Drawing.Point> { _vehicleStartStop, destPoint };
+                        var destPoint = new Point(gridX, gridY);
+                        var stopList = new List<Point> { _vehicleStartStop, destPoint };
                         bool routeOk = CreateAndAssignRoute(_vehicleToPlace, stopList);
 
                         if (routeOk)
@@ -266,7 +259,7 @@ namespace transport_tycoon_viewlayer.ViewModel
                         }
 
                         _vehicleToPlace = null;
-                        _vehicleStartStop = System.Drawing.Point.Empty;
+                        _vehicleStartStop = Point.Empty;
 
                         if (_unplacedVehicles.Count > 0)
                         {
@@ -275,12 +268,12 @@ namespace transport_tycoon_viewlayer.ViewModel
                             var startList = _model.Map.GetValidStartStops(_vehicleToPlace.CarriedMaterial);
                             ValidStartStops = new HashSet<(int x, int y)>(startList);
                             ValidDestinationStops = new HashSet<(int x, int y)>();
-                            SetTool(ToolMode.PlaceVehicle);
+                            SetTool(ToolMode.placeVehicle);
                             StatusText += $" ({_unplacedVehicles.Count} more to place)";
                         }
                         else
                         {
-                            SetTool(ToolMode.None);
+                            SetTool(ToolMode.none);
                         }
 
                         RequestVehicleRedraw?.Invoke();
@@ -291,13 +284,12 @@ namespace transport_tycoon_viewlayer.ViewModel
                     ShowTileInfo(gridX, gridY);
                     break;
             }
-            UpdateUI();
+            UpdateUi();
         }
 
         private void ShowTileInfo(int x, int y)
         {
             var tile = _model.Map.GetTile(x, y);
-            if (tile == null) return;
 
             string type = tile.GetType().Name;
             StatusText = $"[{x},{y}] {type}";
@@ -311,19 +303,20 @@ namespace transport_tycoon_viewlayer.ViewModel
         {
             _model = newModel;
 
-            _model.MoneyChanged += (s, e) => UpdateUI();
-            _model.MapChanged += (s, e) => RequestMapRedraw?.Invoke();
-            _model.VehicleMoved += (s, e) => RequestVehicleRedraw?.Invoke();
-            _model.GameOver += (s, e) =>
+            _model.MoneyChanged += (_, _) => UpdateUi();
+            _model.MapChanged += (_, _) => RequestMapRedraw?.Invoke();
+            _model.VehicleMoved += (_, _) => RequestVehicleRedraw?.Invoke();
+            _model.GameOver += (_, _) =>
             {
                 IsGameOver = true;
                 StatusText = "BANKRUPT! Game Over!";
             };
 
-            UpdateUI();
+            UpdateUi();
             RequestMapRedraw?.Invoke();
         }
-        public void BuyAndPlaceVehicle(string vehicleType, size size)
+        
+        public void BuyAndPlaceVehicle(string vehicleType, TransportTycoon_BOSZI.Model.Size size)
         {
             var vehicle = _model.BuyVehicle(vehicleType, size);
             if (vehicle != null)
@@ -336,7 +329,7 @@ namespace transport_tycoon_viewlayer.ViewModel
                 ValidStartStops = new HashSet<(int x, int y)>(startList);
                 ValidDestinationStops = new HashSet<(int x, int y)>();
 
-                SetTool(ToolMode.PlaceVehicle);
+                SetTool(ToolMode.placeVehicle);
 
                 if (ValidStartStops.Count == 0)
                     StatusText = $"{vehicleType} purchased! No valid producer stops exist yet — build a stop next to a {vehicle.CarriedMaterial} producer first.";
@@ -349,7 +342,7 @@ namespace transport_tycoon_viewlayer.ViewModel
             {
                 StatusText = "Not enough money!";
             }
-            UpdateUI();
+            UpdateUi();
         }
 
         // place a specific vehicle from inventory
@@ -361,7 +354,7 @@ namespace transport_tycoon_viewlayer.ViewModel
                 var startList = _model.Map.GetValidStartStops(vehicle.CarriedMaterial);
                 ValidStartStops = new HashSet<(int x, int y)>(startList);
                 ValidDestinationStops = new HashSet<(int x, int y)>();
-                SetTool(ToolMode.PlaceVehicle);
+                SetTool(ToolMode.placeVehicle);
                 StatusText = ValidStartStops.Count > 0
                     ? $"Click a GREEN stop (next to a {vehicle.CarriedMaterial} producer) to place the vehicle."
                     : $"No valid producer stops for {vehicle.CarriedMaterial}. Build a stop next to a producer first.";
@@ -381,11 +374,11 @@ namespace transport_tycoon_viewlayer.ViewModel
         private void SetTool(ToolMode tool)
         {
             CurrentTool = tool;
-            if (tool == ToolMode.None)
+            if (tool == ToolMode.none)
             {
                 StatusText = "";
                 _vehicleToPlace = null;
-                _vehicleStartStop = System.Drawing.Point.Empty;
+                _vehicleStartStop = Point.Empty;
                 ValidStartStops = new HashSet<(int x, int y)>();
                 ValidDestinationStops = new HashSet<(int x, int y)>();
             }
@@ -403,7 +396,7 @@ namespace transport_tycoon_viewlayer.ViewModel
                 IsPaused = true;
                 RequestPauseMenu?.Invoke();
             }
-            UpdateUI();
+            UpdateUi();
         }
 
         public void StopGame()
@@ -418,39 +411,39 @@ namespace transport_tycoon_viewlayer.ViewModel
             _model.Time.Normal();
             _gameTimer.Start();
             IsPaused = false;
-            UpdateUI();
+            UpdateUi();
         }
 
         private void SetSpeed(GameSpeed speed)
         {
             switch (speed)
             {
-                case GameSpeed.Normal: _model.Time.Normal(); break;
-                case GameSpeed.Fast: _model.Time.Fast(); break;
-                case GameSpeed.VeryFast: _model.Time.VeryFast(); break;
+                case GameSpeed.normal: _model.Time.Normal(); break;
+                case GameSpeed.fast: _model.Time.Fast(); break;
+                case GameSpeed.veryFast: _model.Time.VeryFast(); break;
             }
             IsPaused = false;
             if (!_gameTimer.IsEnabled) _gameTimer.Start();
-            UpdateUI();
+            UpdateUi();
         }
 
         private void GameTimer_Tick(object? sender, EventArgs e)
         {
             _model.Tick();
-            UpdateUI();
+            UpdateUi();
             RequestVehicleRedraw?.Invoke();
         }
 
-        private void UpdateUI()
+        private void UpdateUi()
         {
             MoneyText = $"{_model.Money:N0} $";
             DayText = $"Day: {_model.Time.Day}";
             SpeedText = _model.Time.CurrentSpeed switch
             {
-                GameSpeed.Stopped => "Paused",
-                GameSpeed.Normal => "Normal",
-                GameSpeed.Fast => "Fast",
-                GameSpeed.VeryFast => "Very Fast",
+                GameSpeed.stopped => "Paused",
+                GameSpeed.normal => "Normal",
+                GameSpeed.fast => "Fast",
+                GameSpeed.veryFast => "Very Fast",
                 _ => ""
             };
         }

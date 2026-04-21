@@ -2,14 +2,15 @@ using System.Drawing;
 using TransportTycoon_BOSZI.Model;
 using TransportTycoon_BOSZI.Model.MapObjects;
 using TransportTycoon_BOSZI.Model.Vehicles;
+using Size = TransportTycoon_BOSZI.Model.Size;
 
 namespace TransportTycoon_BOSZI.Persistance;
 
 public class GameDataAccess : IGameDataAccess
 {
     private GameModel _model;
-    private const string SIGNATURE = "TTMAP";
-    private const ushort VERSION = 2;
+    private const string Signature = "TTMAP";
+    private const ushort Version = 2;
 
     public GameDataAccess(GameModel model)
     {
@@ -28,8 +29,8 @@ public class GameDataAccess : IGameDataAccess
             using var stream = File.Open(filePath, FileMode.Create);
             using var w = new BinaryWriter(stream);
 
-            w.Write(System.Text.Encoding.ASCII.GetBytes(SIGNATURE));
-            w.Write(VERSION);
+            w.Write(System.Text.Encoding.ASCII.GetBytes(Signature));
+            w.Write(Version);
 
             w.Write(_model.Time.Day);
             w.Write(_model.Time.TickCounter);
@@ -108,7 +109,7 @@ public class GameDataAccess : IGameDataAccess
                 w.Write(v.LoadedAmount);
                 w.Write(v.CurrentPathIndex);
 
-                w.Write(v.AssignedRoute?.Name ?? "");
+                w.Write(v.AssignedRoute.Name);
 
                 w.Write(v.PathToFollow.Count);
                 foreach (var p in v.PathToFollow)
@@ -128,9 +129,9 @@ public class GameDataAccess : IGameDataAccess
             using var r = new BinaryReader(stream);
 
             string sig = System.Text.Encoding.ASCII.GetString(r.ReadBytes(5));
-            if (sig != SIGNATURE) throw new InvalidDataException("Invalid save file.");
+            if (sig != Signature) throw new InvalidDataException("Invalid save file.");
             ushort version = r.ReadUInt16();
-            if (version > VERSION) throw new InvalidDataException($"Save version {version} not supported.");
+            if (version > Version) throw new InvalidDataException($"Save version {version} not supported.");
 
             int day = r.ReadInt32();
             int tickCounter = r.ReadInt32();
@@ -139,7 +140,7 @@ public class GameDataAccess : IGameDataAccess
             int mapSize = r.ReadInt32();
             int money = r.ReadInt32();
 
-            var map = _model.Map;
+            Map map;
             _model = new GameModel(mapSize, money);
             map = _model.Map;
 
@@ -172,7 +173,7 @@ public class GameDataAccess : IGameDataAccess
                 int pop = r.ReadInt32();
                 int demand = r.ReadInt32();
 
-                var city = new City(name, new coord(cx, cy), size);
+                var city = new City(name, new Coord(cx, cy), size);
                 city.Population = pop;
                 city.PassengerDemand = demand;
                 map.Cities.Add(city);
@@ -191,12 +192,12 @@ public class GameDataAccess : IGameDataAccess
                 industrial_MapObject ind;
                 TileType tt = (TileType)typeByte;
 
-                if (tt == TileType.Mine)
+                if (tt == TileType.mine)
                 {
                     Material kind = (Material)r.ReadByte();
                     ind = new Mine(kind);
                 }
-                else if (tt == TileType.Factory)
+                else if (tt == TileType.factory)
                 {
                     Material usingMat = (Material)r.ReadByte();
                     Material kind = (Material)r.ReadByte();
@@ -239,8 +240,8 @@ public class GameDataAccess : IGameDataAccess
             for (int i = 0; i < vehicleCount; i++)
             {
                 string typeName = r.ReadString();
-                size vSize = (size)r.ReadByte();
-                Material vMat = (Material)r.ReadByte();
+                Size vSize = (Size)r.ReadByte();
+                _ = (Material)r.ReadByte();
                 int posX = r.ReadInt32();
                 int posY = r.ReadInt32();
                 int startX = r.ReadInt32();
@@ -331,36 +332,36 @@ public class GameDataAccess : IGameDataAccess
 
         switch (type)
         {
-            case TileType.Field:
+            case TileType.field:
                 var f = new Field();
                 f.NumberOfTrees = r.ReadByte();
                 return f;
-            case TileType.Road:
+            case TileType.road:
                 var road = new Road();
                 road.IsPartOfCity = r.ReadBoolean();
                 return road;
-            case TileType.House:
+            case TileType.house:
                 var h = new House();
                 h.IsPartOfCity = r.ReadBoolean();
                 return h;
-            case TileType.Stop:
+            case TileType.stop:
                 var stop = new Stop((Material)r.ReadByte());
                 return stop;
-            case TileType.Water:
+            case TileType.water:
                 return new Water();
-            case TileType.Garage:
+            case TileType.garage:
                 return new Garage();
-            case TileType.WoodBridge:
+            case TileType.woodBridge:
                 return new WoodBridge();
-            case TileType.StoneBridge:
+            case TileType.stoneBridge:
                 return new StoneBridge();
-            case TileType.SteelBridge:
+            case TileType.steelBridge:
                 return new SteelBridge();
-            case TileType.Mine:
+            case TileType.mine:
                 return new Mine(); // placeholder, real data restored in industry section
-            case TileType.Factory:
+            case TileType.factory:
                 return new Factory();
-            case TileType.Farm:
+            case TileType.farm:
                 return new Farm();
             default:
                 return new Field();
@@ -371,19 +372,19 @@ public class GameDataAccess : IGameDataAccess
     {
         return tile switch
         {
-            Mine => TileType.Mine,
-            Factory => TileType.Factory,
-            Farm => TileType.Farm,
-            Field => TileType.Field,
-            Road => TileType.Road,
-            House => TileType.House,
-            Water => TileType.Water,
-            Stop => TileType.Stop,
-            Garage => TileType.Garage,
-            WoodBridge => TileType.WoodBridge,
-            StoneBridge => TileType.StoneBridge,
-            SteelBridge => TileType.SteelBridge,
-            _ => TileType.Empty
+            Mine => TileType.mine,
+            Factory => TileType.factory,
+            Farm => TileType.farm,
+            Field => TileType.field,
+            Road => TileType.road,
+            House => TileType.house,
+            Water => TileType.water,
+            Stop => TileType.stop,
+            Garage => TileType.garage,
+            WoodBridge => TileType.woodBridge,
+            StoneBridge => TileType.stoneBridge,
+            SteelBridge => TileType.steelBridge,
+            _ => TileType.empty
         };
     }
 
@@ -403,11 +404,11 @@ public class GameDataAccess : IGameDataAccess
         };
     }
 
-    private Vehicle? CreateVehicle(string typeName, size size)
+    private Vehicle? CreateVehicle(string typeName, Size size)
     {
         return typeName switch
         {
-            "Bus" => new Bus(speed.mid, size),
+            "Bus" => new Bus(Speed.mid, size),
             "IronTransporter" => new IronTransporter(size),
             "IronOreTransporter" => new IronOreTransporter(size),
             "CoalTransporter" => new CoalTransporter(size),

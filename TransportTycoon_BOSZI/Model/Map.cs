@@ -133,7 +133,7 @@ public class Map
             _map[cx + 1, cy + 2] = new Road { IsPartOfCity = true };
             _map[cx + 2, cy + 2] = new House { IsPartOfCity = true };
 
-            _cities.Add(new City("City_" + (_cities.Count + 1), new coord(cx, cy), 3));
+            _cities.Add(new City("City_" + (_cities.Count + 1), new Coord(cx, cy), 3));
             return;
         }
     }
@@ -253,7 +253,7 @@ public class Map
         if (x < 0 || x >= _size || y < 0 || y >= _size) return false;
         if (!(_map[x, y] is Field)) return false;
         if (!HasAdjacentRoadOrCity(x, y)) return false;
-        _map[x, y] = new Stop(Material.nothing) { Coord = new coord(x, y) };
+        _map[x, y] = new Stop(Material.nothing) { Coord = new Coord(x, y) };
         return true;
     }
 
@@ -263,7 +263,7 @@ public class Map
         if (!(_map[x, y] is Field)) return false;
         int cost = (_map[x, y] is Field f && f.NumberOfTrees > 0) ? 50 + f.NumberOfTrees * 20 : 50;
         if (_money < cost) return false;
-        _map[x, y] = new Road { Coord = new coord(x, y) };
+        _map[x, y] = new Road { Coord = new Coord(x, y) };
         _money -= cost;
         return true;
     }
@@ -274,7 +274,7 @@ public class Map
         if (!(_map[x, y] is Field)) return false;
         if (!HasAdjacentRoadOrCity(x, y)) return false;
         if (_money < 100) return false;
-        _map[x, y] = new Stop(material) { Coord = new coord(x, y) };
+        _map[x, y] = new Stop(material) { Coord = new Coord(x, y) };
         _money -= 100;
         return true;
     }
@@ -296,7 +296,7 @@ public class Map
         if (x < 0 || x >= _size || y < 0 || y >= _size) return false;
         if (!(_map[x, y] is Field)) return false;
         if (_money < 200) return false;
-        _map[x, y] = new Garage { Coord = new coord(x, y) };
+        _map[x, y] = new Garage { Coord = new Coord(x, y) };
         _money -= 200;
         return true;
     }

@@ -1,8 +1,8 @@
-namespace TransportTycoon_BOSZI;
+namespace TransportTycoon_BOSZI.Model;
 
-public enum size
+public enum Size
 {
-    Small,
-    Medium,
-    Big
+    small,
+    medium,
+    big
 }

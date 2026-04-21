@@ -5,9 +5,9 @@ namespace TransportTycoon_BOSZI.Model;
 
 public abstract class MapObject
 {
-    private coord _coord;
+    private Coord _coord;
 
-    public coord Coord
+    public Coord Coord
     {
         get => _coord;
         set => _coord = value;

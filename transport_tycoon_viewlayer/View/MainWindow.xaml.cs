@@ -1,13 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -21,12 +14,12 @@ using TransportTycoon_BOSZI.Persistance;
 
 namespace transport_tycoon_viewlayer.View
 {
-    public partial class MainWindow : Window
+    public partial class MainWindow
     {
         private GameViewModel _viewModel;
-
-        private const double TILE_W = 100, TILE_H = 65;
-        private const double TW2 = 50, TH2 = 32;
+        
+        private const double TileW = 100, TileH = 65;
+        private const double Tw2 = 50, Th2 = 32;
 
         private double _camX, _camY;
         private double _zoom = 0.6;
@@ -35,7 +28,7 @@ namespace transport_tycoon_viewlayer.View
         private double _dragCamX, _dragCamY;
 
         private Dictionary<string, BitmapImage?> _spriteCache = new();
-        private string _assetsBase = "";
+        private string _assetsBase;
 
         private WriteableBitmap? _minimapBitmap; 
         private Image? _minimapImage;
@@ -44,7 +37,7 @@ namespace transport_tycoon_viewlayer.View
         public MainWindow()
         {
             InitializeComponent();
-            _viewModel = new GameViewModel();
+            _viewModel = new GameViewModel(Material.bread);
             _assetsBase = System.IO.Path.GetFullPath(
                           System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "Assets"));
 
@@ -53,7 +46,7 @@ namespace transport_tycoon_viewlayer.View
             _viewModel.RequestPauseMenu += () => PauseOverlay.Visibility = Visibility.Visible;
             _viewModel.RequestOpenVehicleShop += OpenVehicleShop;
 
-            _viewModel.PropertyChanged += (s, e) => Dispatcher.Invoke(() =>
+            _viewModel.PropertyChanged += (_, e) => Dispatcher.Invoke(() =>
             {
                 if (e.PropertyName == nameof(_viewModel.MoneyText)) MoneyLabel.Text = _viewModel.MoneyText;
                 if (e.PropertyName == nameof(_viewModel.DayText)) DayLabel.Text = _viewModel.DayText;
@@ -73,8 +66,8 @@ namespace transport_tycoon_viewlayer.View
             GamePanel.Visibility = Visibility.Visible;
             _viewModel.StartNewGame();
             int sz = _viewModel.Model.Map.Size;
-            _camX = sz * TW2;
-            _camY = sz * TH2 / 2;
+            _camX = sz * Tw2;
+            _camY = sz * Th2 / 2;
             _mapDirty = true;
             _minimapImage = null;
             _minimapBitmap = null;
@@ -132,8 +125,8 @@ namespace transport_tycoon_viewlayer.View
                 GamePanel.Visibility = Visibility.Visible;
 
                 int sz = _viewModel.Model.Map.Size;
-                _camX = sz * TW2;
-                _camY = sz * TH2 / 2;
+                _camX = sz * Tw2;
+                _camY = sz * Th2 / 2;
                 _mapDirty = true;
                 _minimapImage = null;
                 _minimapBitmap = null;
@@ -259,22 +252,21 @@ namespace transport_tycoon_viewlayer.View
         private (double wx, double wy) GridToWorld(int gx, int gy)
         {
             int sz = _viewModel.Model.Map.Size;
-            double ox = sz * TW2;
-            return ((gx - gy) * TW2 + ox, (gx + gy) * TH2 + 20);
+            double ox = sz * Tw2;
+            return ((gx - gy) * Tw2 + ox, (gx + gy) * Th2 + 20);
         }
 
         private (int gx, int gy) WorldToGrid(double wx, double wy)
         {
             int sz = _viewModel.Model.Map.Size;
-            double ox = sz * TW2;
+            double ox = sz * Tw2;
             double ax = wx - ox, ay = wy - 20;
-            return ((int)Math.Floor((ax / TW2 + ay / TH2) / 2), (int)Math.Floor((ay / TH2 - ax / TW2) / 2));
+            return ((int)Math.Floor((ax / Tw2 + ay / Th2) / 2), (int)Math.Floor((ay / Th2 - ax / Tw2) / 2));
         }
 
         private void RenderViewport()
         {
             GameCanvas.Children.Clear();
-            if (_viewModel.Model?.Map?.GetMap == null) return;
 
             var map = _viewModel.Model.Map;
             int sz = map.Size;
@@ -284,10 +276,10 @@ namespace transport_tycoon_viewlayer.View
             
             double halfW = cw / 2 / _zoom;
             double halfH = ch / 2 / _zoom;
-            double worldLeft = _camX - halfW - TILE_W;
-            double worldRight = _camX + halfW + TILE_W;
-            double worldTop = _camY - halfH - TILE_H * 2;
-            double worldBot = _camY + halfH + TILE_H * 2;
+            double worldLeft = _camX - halfW - TileW;
+            double worldRight = _camX + halfW + TileW;
+            double worldTop = _camY - halfH - TileH * 2;
+            double worldBot = _camY + halfH + TileH * 2;
 
             
             for (int gx = 0; gx < sz; gx++)
@@ -300,8 +292,8 @@ namespace transport_tycoon_viewlayer.View
 
                     double screenX = (wx - _camX) * _zoom + cw / 2;
                     double screenY = (wy - _camY) * _zoom + ch / 2;
-                    double tileW = TILE_W * _zoom;
-                    double tileH = TILE_H * _zoom;
+                    double tileW = TileW * _zoom;
+                    double tileH = TileH * _zoom;
 
                     MapObject tile = map.GetMap[gx, gy];
                     int z = gx + gy;
@@ -312,7 +304,7 @@ namespace transport_tycoon_viewlayer.View
                     {
                         Canvas.SetLeft(gndImg, screenX - tileW / 2);
                         Canvas.SetTop(gndImg, screenY);
-                        Canvas.SetZIndex(gndImg, z * 2);
+                        Panel.SetZIndex(gndImg, z * 2);
                         GameCanvas.Children.Add(gndImg);
                     }
 
@@ -327,8 +319,8 @@ namespace transport_tycoon_viewlayer.View
                         if (bldImg != null)
                         {
                             Canvas.SetLeft(bldImg, screenX - bW / 2);
-                            Canvas.SetTop(bldImg, screenY + TH2 * _zoom - bH + 5 * _zoom);
-                            Canvas.SetZIndex(bldImg, z * 2 + 1);
+                            Canvas.SetTop(bldImg, screenY + Th2 * _zoom - bH + 5 * _zoom);
+                            Panel.SetZIndex(bldImg, z * 2 + 1);
                             GameCanvas.Children.Add(bldImg);
                         }
                     }
@@ -342,9 +334,9 @@ namespace transport_tycoon_viewlayer.View
                     {
                         double dotSize = 14 * _zoom;
 
-                        bool isValidStart = _viewModel.CurrentTool == ToolMode.PlaceVehicle &&
+                        bool isValidStart = _viewModel.CurrentTool == ToolMode.placeVehicle &&
                                            _viewModel.ValidStartStops.Contains((gx, gy));
-                        bool isValidDest  = _viewModel.CurrentTool == ToolMode.SelectDestination &&
+                        bool isValidDest  = _viewModel.CurrentTool == ToolMode.selectDestination &&
                                            _viewModel.ValidDestinationStops.Contains((gx, gy));
 
                         if (isValidStart || isValidDest)
@@ -359,14 +351,14 @@ namespace transport_tycoon_viewlayer.View
                                 Stroke = ringStroke, StrokeThickness = 2
                             };
                             Canvas.SetLeft(ring, screenX - ringSize / 2);
-                            Canvas.SetTop(ring, screenY + TH2 * _zoom - ringSize / 2);
-                            Canvas.SetZIndex(ring, z * 2 + 9);
+                            Canvas.SetTop(ring, screenY + Th2 * _zoom - ringSize / 2);
+                            Panel.SetZIndex(ring, z * 2 + 9);
                             GameCanvas.Children.Add(ring);
                         }
 
                         var dot = new Ellipse { Width = dotSize, Height = dotSize, Fill = Brushes.OrangeRed, Stroke = Brushes.White, StrokeThickness = 2 * _zoom };
-                        Canvas.SetLeft(dot, screenX - dotSize / 2); Canvas.SetTop(dot, screenY + TH2 * _zoom - dotSize / 2);
-                        Canvas.SetZIndex(dot, z * 2 + 10); GameCanvas.Children.Add(dot);
+                        Canvas.SetLeft(dot, screenX - dotSize / 2); Canvas.SetTop(dot, screenY + Th2 * _zoom - dotSize / 2);
+                        Panel.SetZIndex(dot, z * 2 + 10); GameCanvas.Children.Add(dot);
                     }
                 }
             }
@@ -384,8 +376,8 @@ namespace transport_tycoon_viewlayer.View
                 if (vImg != null)
                 {
                     vImg.Tag = "vehicle";
-                    Canvas.SetLeft(vImg, sx - vw / 2); Canvas.SetTop(vImg, sy + TH2 * _zoom - vh / 2);
-                    Canvas.SetZIndex(vImg, (v.CurrentPosition.X + v.CurrentPosition.Y) * 2 + 50);
+                    Canvas.SetLeft(vImg, sx - vw / 2); Canvas.SetTop(vImg, sy + Th2 * _zoom - vh / 2);
+                    Panel.SetZIndex(vImg, (v.CurrentPosition.X + v.CurrentPosition.Y) * 2 + 50);
                     GameCanvas.Children.Add(vImg);
                 }
             }
@@ -410,7 +402,7 @@ namespace transport_tycoon_viewlayer.View
                 {
                     Canvas.SetLeft(img, sx + ox[i] * _zoom - 10 * _zoom);
                     Canvas.SetTop(img, sy + oy[i] * _zoom - 10 * _zoom);
-                    Canvas.SetZIndex(img, z * 2 + 5);
+                    Panel.SetZIndex(img, z * 2 + 5);
                     GameCanvas.Children.Add(img);
                 }
             }
@@ -553,7 +545,7 @@ namespace transport_tycoon_viewlayer.View
         {
             if (_spriteCache.TryGetValue(rel, out var c)) return c;
             string full = System.IO.Path.Combine(_assetsBase, rel);
-            if (!System.IO.File.Exists(full)) { _spriteCache[rel] = null; return null; }
+            if (!File.Exists(full)) { _spriteCache[rel] = null; return null; }
             try
             {
                 var b = new BitmapImage();
@@ -565,9 +557,6 @@ namespace transport_tycoon_viewlayer.View
         }
         private void UpdateVehiclesOnly()
         {
-            if (_viewModel.Model?.Vehicles == null) return;
-    
-            var map = _viewModel.Model.Map;
             double cw = GameCanvas.ActualWidth > 0 ? GameCanvas.ActualWidth : 1280;
             double ch = GameCanvas.ActualHeight > 0 ? GameCanvas.ActualHeight : 600;
             
@@ -590,8 +579,8 @@ namespace transport_tycoon_viewlayer.View
                 {
                     vImg.Tag = "vehicle";
                     Canvas.SetLeft(vImg, sx - vw / 2);
-                    Canvas.SetTop(vImg, sy + TH2 * _zoom - vh / 2);
-                    Canvas.SetZIndex(vImg, (v.CurrentPosition.X + v.CurrentPosition.Y) * 2 + 50);
+                    Canvas.SetTop(vImg, sy + Th2 * _zoom - vh / 2);
+                    Panel.SetZIndex(vImg, (v.CurrentPosition.X + v.CurrentPosition.Y) * 2 + 50);
                     GameCanvas.Children.Add(vImg);
                 }
             }

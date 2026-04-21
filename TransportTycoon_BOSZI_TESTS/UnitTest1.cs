@@ -1,17 +1,16 @@
 namespace TransportTycoon_BOSZI_TESTS;
 using System.Drawing;
 using Xunit;
-using TransportTycoon_BOSZI;
 using TransportTycoon_BOSZI.Model;
 using TransportTycoon_BOSZI.Model.MapObjects;
 using TransportTycoon_BOSZI.Model.Vehicles;
 
-public class TransportTycoon_BOSZI_TESTS
+public class TransportTycoonBosziTests
 {
     [Fact]
     public void SmallSlowNothing_ReturnsExpectedCapacityAndCost()
     { 
-        VehicleSpec spec = VehicleCatalog.GetSpec(speed.slow, size.Small, Material.nothing);
+        VehicleSpec spec = VehicleCatalog.GetSpec(Speed.slow, TransportTycoon_BOSZI.Model.Size.small, Material.nothing);
         Assert.Equal(50, spec.Capacity);
         Assert.Equal(250, spec.Cost);
     }
@@ -19,8 +18,8 @@ public class TransportTycoon_BOSZI_TESTS
     [Fact]
     public void BigFastIron_ReturnsHigherCost()
     {
-        VehicleSpec specFast = VehicleCatalog.GetSpec(speed.fast, size.Big, Material.iron);
-        VehicleSpec specSlow = VehicleCatalog.GetSpec(speed.slow, size.Big, Material.iron);
+        VehicleSpec specFast = VehicleCatalog.GetSpec(Speed.fast, TransportTycoon_BOSZI.Model.Size.big, Material.iron);
+        VehicleSpec specSlow = VehicleCatalog.GetSpec(Speed.slow, TransportTycoon_BOSZI.Model.Size.big, Material.iron);
  
         Assert.True(specFast.Cost > specSlow.Cost, "Faster vehicles should cost more.");
     }
@@ -28,36 +27,36 @@ public class TransportTycoon_BOSZI_TESTS
     [Fact]
     public void GetSpec_MediumMid_CapacityIs100()
     {
-        VehicleSpec spec = VehicleCatalog.GetSpec(speed.mid, size.Medium, Material.coal);
+        VehicleSpec spec = VehicleCatalog.GetSpec(Speed.mid, TransportTycoon_BOSZI.Model.Size.medium, Material.coal);
         Assert.Equal(100, spec.Capacity);
     }
  
     [Theory]
-    [InlineData(size.Small,  50)]
-    [InlineData(size.Medium, 100)]
-    [InlineData(size.Big,    200)]
-    public void GetSpec_CapacityMatchesSize(size s, int expectedCapacity)
+    [InlineData(TransportTycoon_BOSZI.Model.Size.small,  50)]
+    [InlineData(TransportTycoon_BOSZI.Model.Size.medium, 100)]
+    [InlineData(TransportTycoon_BOSZI.Model.Size.big,    200)]
+    public void GetSpec_CapacityMatchesSize(TransportTycoon_BOSZI.Model.Size s, int expectedCapacity)
     {
-        var spec = VehicleCatalog.GetSpec(speed.mid, s, Material.nothing);
+        var spec = VehicleCatalog.GetSpec(Speed.mid, s, Material.nothing);
         Assert.Equal(expectedCapacity, spec.Capacity);
     }
  
     [Fact]
     public void GetSpec_MaintenanceCostIsOnetenth()
     {
-        var spec = VehicleCatalog.GetSpec(speed.mid, size.Medium, Material.bread);
+        var spec = VehicleCatalog.GetSpec(Speed.mid, TransportTycoon_BOSZI.Model.Size.medium, Material.bread);
         Assert.True(spec.Cost > 0);
     }
 }
  
 public class VehicleTests
 {
-    private BreadTransporter MakeVehicle(size s = size.Small) => new BreadTransporter(s);
- 
+    private BreadTransporter MakeVehicle(TransportTycoon_BOSZI.Model.Size s = TransportTycoon_BOSZI.Model.Size.small) => new BreadTransporter(s);
+    private TransportTycoon_BOSZI.Model.Size _s = TransportTycoon_BOSZI.Model.Size.small;
     [Fact]
     public void LoadGoods_WithinCapacity_LoadsAll()
     {
-        var v = MakeVehicle(size.Small);
+        var v = MakeVehicle(_s);
         int loaded = v.LoadGoods(30);
  
         Assert.Equal(30, loaded);
@@ -67,7 +66,7 @@ public class VehicleTests
     [Fact]
     public void LoadGoods_ExceedsCapacity_ClampsToCapacity()
     {
-        var v = MakeVehicle(size.Small);
+        var v = MakeVehicle(_s);
         int loaded = v.LoadGoods(80);
  
         Assert.Equal(50, loaded);
@@ -77,7 +76,7 @@ public class VehicleTests
     [Fact]
     public void UnloadGoods_ReturnsLoadedAmountAndResetsToZero()
     {
-        var v = MakeVehicle(size.Small);
+        var v = MakeVehicle(_s);
         v.LoadGoods(40);
         int unloaded = v.UnloadGoods();
  
@@ -146,7 +145,7 @@ public class VehicleTests
         var map = new MapObject[size, size];
         for (int i = 0; i < size; i++)
             for (int j = 0; j < size; j++)
-                map[i, j] = (j == 0) ? (MapObject)new Road() : new Field();
+                map[i, j] = (j == 0) ? new Road() : new Field();
         return map;
     }
 }
@@ -206,7 +205,7 @@ public class TimeTests
     {
         var t = new Time();
         t.Normal();
-        Assert.Equal(GameSpeed.Normal, t.CurrentSpeed);
+        Assert.Equal(GameSpeed.normal, t.CurrentSpeed);
     }
  
     [Fact]
@@ -215,7 +214,7 @@ public class TimeTests
         var t = new Time();
         t.Normal();
         t.Stop();
-        Assert.Equal(GameSpeed.Stopped, t.CurrentSpeed);
+        Assert.Equal(GameSpeed.stopped, t.CurrentSpeed);
     }
  
     [Fact]
@@ -313,7 +312,7 @@ public class GameModelTests
     {
         var gm = CreateStartedGame(money: 10_000);
         int before = gm.Money;
-        var v = gm.BuyVehicle("Bus", size.Small);
+        var v = gm.BuyVehicle("Bus", TransportTycoon_BOSZI.Model.Size.small);
  
         Assert.NotNull(v);
         Assert.True(gm.Money < before);
@@ -323,7 +322,7 @@ public class GameModelTests
     public void BuyVehicle_ValidType_AddsToVehicleList()
     {
         var gm = CreateStartedGame(money: 10_000);
-        gm.BuyVehicle("Bus", size.Small);
+        gm.BuyVehicle("Bus", TransportTycoon_BOSZI.Model.Size.small);
         Assert.Single(gm.Vehicles);
     }
  
@@ -332,7 +331,7 @@ public class GameModelTests
     {
         var gm = new GameModel(30, 0);
         gm.StartNewGame();
-        var v = gm.BuyVehicle("Bus", size.Big);
+        var v = gm.BuyVehicle("Bus", TransportTycoon_BOSZI.Model.Size.big);
         Assert.Null(v);
     }
  
@@ -340,7 +339,7 @@ public class GameModelTests
     public void GetVehiclePrice_UnknownType_ReturnsZero()
     {
         var gm = CreateStartedGame();
-        Assert.Equal(0, gm.GetVehiclePrice("Submarine", size.Small));
+        Assert.Equal(0, gm.GetVehiclePrice("Submarine", TransportTycoon_BOSZI.Model.Size.small));
     }
  
     [Fact]
@@ -349,7 +348,7 @@ public class GameModelTests
         var gm = CreateStartedGame(money: 10_000);
         bool fired = false;
         gm.MoneyChanged += (_, _) => fired = true;
-        gm.BuyVehicle("Bus", size.Small);
+        gm.BuyVehicle("Bus", TransportTycoon_BOSZI.Model.Size.small);
         Assert.True(fired);
     }
 }
