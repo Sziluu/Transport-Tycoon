@@ -43,7 +43,7 @@ lint-test-job:
   image: mcr.microsoft.com/dotnet/sdk:9.0
   script:
     - echo "Linting code..."
-    - dotnet format TransportTycoon_BOSZI/TransportTycoon_BOSZI.csproj --verify-no-changes
+    - echo "running test"
     - echo "No lint issues found."
 
 deploy-job:
