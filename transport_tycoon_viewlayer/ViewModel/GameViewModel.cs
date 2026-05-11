@@ -7,13 +7,13 @@ using TransportTycoon_BOSZI.Model.MapObjects;
 
 namespace transport_tycoon_viewlayer.ViewModel
 {
-    public enum ToolMode //kattintások éppen mit csinálnak
+    public enum ToolMode
     {
         none,
         buildRoad,
         placeStop,
-        placeVehicle,       // Phase 1: pick the start stop for the vehicle
-        selectDestination   // Phase 2: pick the destination stop to create the route
+        placeVehicle,
+        selectDestination
     }
 
     public class GameViewModel : ViewModelBase
@@ -94,7 +94,6 @@ namespace transport_tycoon_viewlayer.ViewModel
         public List<Vehicle> UnplacedVehicles => _unplacedVehicles;
         public Vehicle? VehicleToPlace => _vehicleToPlace;
 
-        // commands
         public ICommand BuildRoadCommand { get; }
         public ICommand PlaceStopCommand { get; }
         public ICommand PauseCommand { get; }
@@ -104,7 +103,6 @@ namespace transport_tycoon_viewlayer.ViewModel
         public ICommand SpeedVeryFastCommand { get; }
         public ICommand CancelToolCommand { get; }
 
-        // events for View
         public event Action? RequestMapRedraw;
         public event Action? RequestVehicleRedraw;
         public event Action? RequestOpenVehicleShop;
@@ -132,7 +130,7 @@ namespace transport_tycoon_viewlayer.ViewModel
             CancelToolCommand = new RelayCommand(_ => SetTool(ToolMode.none));
 
             _gameTimer = new DispatcherTimer();
-            _gameTimer.Interval = TimeSpan.FromMilliseconds(50);
+            _gameTimer.Interval = TimeSpan.FromMilliseconds(150);
             _gameTimer.Tick += GameTimer_Tick;
 
             _model.MoneyChanged += (_, _) => UpdateUi();
@@ -206,7 +204,6 @@ namespace transport_tycoon_viewlayer.ViewModel
                             _vehicleStartStop = new Point(gridX, gridY);
                             _unplacedVehicles.Remove(_vehicleToPlace);
 
-                            // Compute valid destination stops and switch to phase 2
                             var destList = _model.Map.GetValidDestinationStops(_vehicleToPlace.CarriedMaterial);
                             ValidDestinationStops = new HashSet<(int x, int y)>(destList);
 
@@ -243,7 +240,6 @@ namespace transport_tycoon_viewlayer.ViewModel
                             break;
                         }
 
-                        // Create a two-stop route and assign it to the vehicle
                         var destPoint = new Point(gridX, gridY);
                         var stopList = new List<Point> { _vehicleStartStop, destPoint };
                         bool routeOk = CreateAndAssignRoute(_vehicleToPlace, stopList);
@@ -255,7 +251,7 @@ namespace transport_tycoon_viewlayer.ViewModel
                         else
                         {
                             StatusText = "Could not create route (no road connection?). Try a different destination.";
-                            break; // stay in SelectDestination so the player can try again
+                            break;
                         }
 
                         _vehicleToPlace = null;
@@ -263,7 +259,6 @@ namespace transport_tycoon_viewlayer.ViewModel
 
                         if (_unplacedVehicles.Count > 0)
                         {
-                            // More vehicles to place — restart phase 1 for the next one
                             _vehicleToPlace = _unplacedVehicles[0];
                             var startList = _model.Map.GetValidStartStops(_vehicleToPlace.CarriedMaterial);
                             ValidStartStops = new HashSet<(int x, int y)>(startList);
@@ -324,7 +319,6 @@ namespace transport_tycoon_viewlayer.ViewModel
                 _unplacedVehicles.Add(vehicle);
                 _vehicleToPlace = vehicle;
 
-                // Compute valid start stops (must be adjacent to a producer of the vehicle's material)
                 var startList = _model.Map.GetValidStartStops(vehicle.CarriedMaterial);
                 ValidStartStops = new HashSet<(int x, int y)>(startList);
                 ValidDestinationStops = new HashSet<(int x, int y)>();
@@ -345,7 +339,6 @@ namespace transport_tycoon_viewlayer.ViewModel
             UpdateUi();
         }
 
-        // place a specific vehicle from inventory
         public void SelectVehicleToPlace(Vehicle vehicle)
         {
             if (_unplacedVehicles.Contains(vehicle))

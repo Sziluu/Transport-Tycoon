@@ -59,8 +59,8 @@ public class Mine : industrial_MapObject
 
 public class Factory : industrial_MapObject
 {
-    private Material _using; //amit felhasznál
-    private Material _kind;  //amit termel
+    private Material _using;
+    private Material _kind;
 
     public Material Using => _using;
     public Material Kind => _kind;

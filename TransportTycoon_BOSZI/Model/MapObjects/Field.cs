@@ -10,9 +10,9 @@ public class Field : MapObject
         set => _numberOfTrees = value;
     }
 
-    public void InfectOtherSquare() //erdő terjeszkedés
+    public void InfectOtherSquare()
     {
-        // majd implementálni
+
     }
     
 }

@@ -306,7 +306,6 @@ public class GameDataAccess : IGameDataAccess
         byte type = (byte)GetTileType(tile);
         w.Write(type);
 
-        // tile-specific extra data
         switch (tile)
         {
             case Field f:
@@ -321,8 +320,6 @@ public class GameDataAccess : IGameDataAccess
             case Stop s:
                 w.Write((byte)s.AcceptedMaterial);
                 break;
-            // Mine/Factory/Farm data is saved separately in the industries section
-            // Water, Empty, Garage, Bridge have no extra data
         }
     }
 
@@ -358,7 +355,7 @@ public class GameDataAccess : IGameDataAccess
             case TileType.steelBridge:
                 return new SteelBridge();
             case TileType.mine:
-                return new Mine(); // placeholder, real data restored in industry section
+                return new Mine();
             case TileType.factory:
                 return new Factory();
             case TileType.farm:

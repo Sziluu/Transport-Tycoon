@@ -4,7 +4,6 @@ using System.Windows.Input;
 
 namespace transport_tycoon_viewlayer.ViewModel
 {
-    //INotifyPropertyChanged implementáció
     public class ViewModelBase : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler? PropertyChanged;

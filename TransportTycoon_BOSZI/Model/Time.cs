@@ -62,7 +62,7 @@ public class Time
         if (_currentSpeed == GameSpeed.stopped) return;
 
         _tickCounter++;
-        if (_tickCounter >= 100) //100 tick = 1 nap
+        if (_tickCounter >= 100)
         {
             _tickCounter = 0;
             _day++;

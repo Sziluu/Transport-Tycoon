@@ -28,7 +28,6 @@ public class Map
         _map = new MapObject[_size, _size];
         _cities.Clear(); _industries.Clear(); _industryPositions.Clear();
 
-        //  Perlin-like noise
         double[,] noise = GenerateNoise();
 
         for (int i = 0; i < _size; i++)
@@ -59,7 +58,6 @@ public class Map
         return _map;
     }
 
-    // tenyleges perline noise
     private double[,] GenerateNoise()
     {
         double[,] result = new double[_size, _size];
@@ -233,7 +231,6 @@ public class Map
         foreach (var city in _cities)
         {
             int cx = city.TopLeft.X, cy = city.TopLeft.Y;
-            // Try north entrance (above road at cx+1,cy), then south entrance
             if (!TryPlaceAutoStop(cx + 1, cy - 1))
                 TryPlaceAutoStop(cx + 1, cy + 3);
         }
@@ -316,8 +313,6 @@ public class Map
         return stops;
     }
 
-    // Returns all stops that are adjacent to an industry producing the given material.
-    // For Material.nothing (Bus) every stop is valid.
     public List<(int x, int y)> GetValidStartStops(Material material)
     {
         var result = new List<(int x, int y)>();
@@ -328,8 +323,6 @@ public class Map
         return result;
     }
 
-    // Returns all stops that are adjacent to an industry/facility that consumes the given material.
-    // For Material.nothing (Bus) every stop is valid.
     public List<(int x, int y)> GetValidDestinationStops(Material material)
     {
         var result = new List<(int x, int y)>();
@@ -368,7 +361,6 @@ public class Map
             if (nx < 0 || nx >= _size || ny < 0 || ny >= _size) continue;
             var tile = _map[nx, ny];
             if (tile is Factory fac && fac.Using == material) return true;
-            // Cities (House tiles) consume finished goods
             if (tile is House && IsFinishedGood(material)) return true;
         }
         return false;

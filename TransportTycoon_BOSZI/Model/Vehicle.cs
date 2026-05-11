@@ -87,7 +87,7 @@ public abstract class Vehicle
         set => _currentPosition = value;
     }
 
-    public Route AssignedRoute
+    public Route? AssignedRoute
     {
         get => _assignedRoute!;
         set => _assignedRoute = value;
@@ -339,6 +339,18 @@ public abstract class Vehicle
                 }
             }
         }
+    }
+
+    public Point GetMovementDirection()
+    {
+        if(!_isMoving || _pathToFollow.Count == 0 || _currentPathIndex >=_pathToFollow.Count - 1)
+        {
+            return Point.Empty;
+        }
+        Point next = _pathToFollow[_currentPathIndex + 1];
+        int dx = Math.Sign(next.X - _currentPosition.X);
+        int dy = Math.Sign(next.Y - _currentPosition.Y);
+        return new Point(dx, dy);
     }
 }
 

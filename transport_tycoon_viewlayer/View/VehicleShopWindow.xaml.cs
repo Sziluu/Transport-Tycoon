@@ -4,9 +4,6 @@ using System.Windows.Media;
 using transport_tycoon_viewlayer.ViewModel;
 namespace transport_tycoon_viewlayer.View
 {
-    /// <summary>
-    /// Interaction logic for VehicleShopWindow.xaml
-    /// </summary>
     public partial class VehicleShopWindow
     {
         private GameViewModel _viewModel;
@@ -70,7 +67,6 @@ namespace transport_tycoon_viewlayer.View
                 _ => "-"
             };
 
-            //vehicle color preview
             Color vColor = _selectedType switch
             {
                 "Bus" => Color.FromRgb(255, 200, 0),

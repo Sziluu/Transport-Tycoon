@@ -11,7 +11,7 @@ namespace TransportTycoon_BOSZI.Model
         private int _size;
         private List<MapObject> _fields;
         private string _name;
-        private Coord _topLeft; //bal felső sarok a térképen
+        private Coord _topLeft;
         private int _population;
         private int _passengerDemand;
 

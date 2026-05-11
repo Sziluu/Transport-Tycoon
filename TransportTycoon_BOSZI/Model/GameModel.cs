@@ -165,6 +165,13 @@ public class GameModel
                 {
                     for (int step = 0; step < vehicle.EffectiveStepsPerTick; step++)
                     {
+                        if(vehicle.PathToFollow.Count > 0 && vehicle.CurrentPathIndex < vehicle.PathToFollow.Count - 1)
+                        {
+                            Point nextPos = vehicle.PathToFollow[vehicle.CurrentPathIndex + 1];
+                            if (!CanEnterTitle(vehicle, nextPos)) break;
+                        }
+
+
                         bool moved = vehicle.StepAlongPath();
                         if (moved) anyMoved = true;
                         else break;
@@ -174,7 +181,7 @@ public class GameModel
                 if (vehicle.HasArrivedAtStop())
                     HandleStopArrival(vehicle);
             }
-            else if (vehicle.AssignedRoute.IsValid())
+            else if (vehicle.AssignedRoute != null && vehicle.AssignedRoute.IsValid())
             {
                 vehicle.MoveToNextStop();
             }
@@ -294,4 +301,59 @@ public class GameModel
         return temp?.Cost ?? 0;
     }
 
+    private bool IsIntersection(Point pos)
+    {
+        int walkableNeighbors = 0;
+        int[] dx = { -1, 1, 0, 0 };
+        int[] dy = { 0, 0, -1, 1 };
+
+        for (int k = 0; k < 4; k++)
+        {
+            int nx = pos.X + dx[k];
+            int ny = pos.Y + dy[k];
+            if (nx < 0 || nx >= _mapSize || ny < 0 || ny >= _mapSize)
+                continue;
+            MapObject title = _map.GetMap[nx, ny];
+            if (title is Road or Stop or House or Bridge or Garage)
+            {
+                walkableNeighbors++;
+            }
+        }
+        return walkableNeighbors >= 0;
+    }
+
+    private bool AreDirectionsCrossing(Point dirA, Point dirB)
+    {
+        if (dirA == Point.Empty ||  dirB == Point.Empty) return false;
+
+        bool aHorizontal = dirA.X != 0 && dirA.Y == 0;
+        bool aVertical = dirA.X == 0 && dirA.Y != 0;
+        bool bHorizontal = dirB.X != 0 && dirB.Y == 0;
+        bool bVertical = dirB.X == 0 && dirB.Y != 0;
+
+        return (aHorizontal && bVertical) || (aVertical && bHorizontal);
+    }
+
+    private bool CanEnterTitle(Vehicle vehicle, Point nextPos)
+    {
+        if (!IsIntersection(nextPos)) return true;
+
+        Point myDir = vehicle.GetMovementDirection();
+
+        foreach (var other in _vehicles)
+        {
+            if (other == vehicle) continue;
+            if (!other.IsMoving) continue;
+
+            if(other.CurrentPosition == nextPos)
+            {
+                Point otherDir = other.GetMovementDirection();
+                if(AreDirectionsCrossing(myDir, otherDir))
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 }
